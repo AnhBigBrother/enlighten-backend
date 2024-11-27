@@ -1,0 +1,28 @@
+package resp
+
+import (
+	"encoding/json"
+	"log"
+	"net/http"
+)
+
+func Json(w http.ResponseWriter, code int, payload interface{}) {
+	data, err := json.Marshal(payload)
+	if err != nil {
+		log.Println("Error when Marshal json response:", payload)
+		w.WriteHeader(500)
+		return
+	}
+	w.Header().Add("Content-Type", "application/json")
+	w.WriteHeader(code)
+	w.Write(data)
+}
+
+func Err(w http.ResponseWriter, code int, msg string) {
+	if code > 499 {
+		log.Println("Server error:", msg)
+	}
+	Json(w, code, struct {
+		Error string `json:"error"`
+	}{Error: msg})
+}
