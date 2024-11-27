@@ -2,9 +2,10 @@ package middleware
 
 import (
 	"context"
-	"enlighten-backend/pkg/jwt"
 	"net/http"
 	"strings"
+
+	"github.com/AnhBigBrother/enlighten-backend/pkg/token"
 )
 
 func Auth(handler http.HandlerFunc) http.HandlerFunc {
@@ -24,7 +25,7 @@ func Auth(handler http.HandlerFunc) http.HandlerFunc {
 			handler(w, r)
 			return
 		}
-		userClaim, err := jwt.ValidateJwt(access_token)
+		userClaim, err := token.Parse(access_token)
 		if err != nil {
 			handler(w, r)
 			return

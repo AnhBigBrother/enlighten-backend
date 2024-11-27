@@ -1,11 +1,12 @@
 package server
 
 import (
-	"enlighten-backend/cfg"
-	"enlighten-backend/internal/handler"
 	"fmt"
 	"net/http"
 	"time"
+
+	"github.com/AnhBigBrother/enlighten-backend/cfg"
+	"github.com/AnhBigBrother/enlighten-backend/internal/handler"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/cors"
@@ -32,7 +33,7 @@ func RegisterRoutes() http.Handler {
 
 func NewServer() *http.Server {
 	server := &http.Server{
-		Addr:         fmt.Sprintf(":%v", cfg.Envs.Port),
+		Addr:         fmt.Sprintf(":%s", cfg.Port),
 		Handler:      RegisterRoutes(),
 		IdleTimeout:  time.Minute,
 		ReadTimeout:  10 * time.Second,

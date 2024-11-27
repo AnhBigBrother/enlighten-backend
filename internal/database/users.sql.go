@@ -8,6 +8,7 @@ package database
 import (
 	"context"
 	"database/sql"
+	"time"
 
 	"github.com/google/uuid"
 )
@@ -31,14 +32,14 @@ RETURNING
 `
 
 type CreateUserParams struct {
-	ID           uuid.NullUUID
+	ID           uuid.UUID
 	Email        string
 	Name         string
 	Password     string
-	Image        string
-	RefreshToken string
-	CreatedAt    sql.NullTime
-	UpdatedAt    sql.NullTime
+	Image        sql.NullString
+	RefreshToken sql.NullString
+	CreatedAt    time.Time
+	UpdatedAt    time.Time
 }
 
 func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, error) {

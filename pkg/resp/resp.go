@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+
+	"github.com/AnhBigBrother/enlighten-backend/cfg"
 )
 
 func Json(w http.ResponseWriter, code int, payload interface{}) {
@@ -25,4 +27,15 @@ func Err(w http.ResponseWriter, code int, msg string) {
 	Json(w, code, struct {
 		Error string `json:"error"`
 	}{Error: msg})
+}
+
+func SetCookie(w http.ResponseWriter, key, value string) {
+	http.SetCookie(w, &http.Cookie{
+		Name:     key,
+		Value:    value,
+		MaxAge:   cfg.CookieAge,
+		HttpOnly: true,
+		SameSite: http.SameSiteNoneMode,
+		Secure:   true,
+	})
 }

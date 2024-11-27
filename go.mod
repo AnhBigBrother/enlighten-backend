@@ -1,4 +1,4 @@
-module enlighten-backend
+module github.com/AnhBigBrother/enlighten-backend
 
 go 1.23.0
 
