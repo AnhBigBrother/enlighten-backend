@@ -7,28 +7,33 @@ import (
 
 	"github.com/AnhBigBrother/enlighten-backend/cfg"
 	"github.com/AnhBigBrother/enlighten-backend/internal/handler"
-
-	"github.com/go-chi/chi/v5"
-	"github.com/go-chi/cors"
+	"github.com/AnhBigBrother/enlighten-backend/internal/middleware"
+	"github.com/rs/cors"
 )
 
 func RegisterRoutes() http.Handler {
-	router := chi.NewRouter()
-	router.Use(cors.Handler(cors.Options{
+	router := http.NewServeMux()
+
+	userApi := handler.NewUserApi()
+	userRouter := http.NewServeMux()
+	userRouter.HandleFunc("POST /signup", userApi.SignUp)
+	userRouter.HandleFunc("POST /signin", userApi.SignIn)
+	userRouter.HandleFunc("POST /signout", middleware.Auth(userApi.SignOut))
+	userRouter.HandleFunc("GET /me", middleware.Auth(userApi.GetMe))
+	userRouter.HandleFunc("POST /me", middleware.Auth(userApi.UpdateMe))
+	userRouter.HandleFunc("DELETE /me", middleware.Auth(userApi.DeleteMe))
+	userRouter.HandleFunc("GET /me/session", middleware.Auth(userApi.GetSesion))
+	userRouter.HandleFunc("GET /me/access_token", userApi.GetAccessToken)
+
+	router.Handle("/user/", http.StripPrefix("/user", userRouter))
+
+	return cors.New(cors.Options{
 		AllowedOrigins:   []string{"https://*", "http://*"},
 		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"},
 		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type"},
 		AllowCredentials: true,
 		MaxAge:           300,
-	}))
-
-	userApi := handler.NewUserApi()
-	userRouter := chi.NewRouter()
-	userRouter.Post("/signup", userApi.SignUp)
-
-	router.Mount("/user", userRouter)
-
-	return router
+	}).Handler(router)
 }
 
 func NewServer() *http.Server {

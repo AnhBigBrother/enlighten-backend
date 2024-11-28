@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/AnhBigBrother/enlighten-backend/pkg/resp"
 	"github.com/AnhBigBrother/enlighten-backend/pkg/token"
 )
 
@@ -22,12 +23,12 @@ func Auth(handler http.HandlerFunc) http.HandlerFunc {
 			}
 		}
 		if access_token == "" {
-			handler(w, r)
+			resp.Err(w, 401, "unauthorized: access_token failed")
 			return
 		}
 		userClaim, err := token.Parse(access_token)
 		if err != nil {
-			handler(w, r)
+			resp.Err(w, 401, "unauthorized: access_token failed")
 			return
 		}
 		ctx := context.WithValue(r.Context(), "user", userClaim)

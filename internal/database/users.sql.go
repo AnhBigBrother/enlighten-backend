@@ -66,3 +66,112 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 	)
 	return i, err
 }
+
+const deleteUserInfo = `-- name: DeleteUserInfo :exec
+DELETE FROM users
+WHERE
+  email = $1
+`
+
+func (q *Queries) DeleteUserInfo(ctx context.Context, email string) error {
+	_, err := q.db.ExecContext(ctx, deleteUserInfo, email)
+	return err
+}
+
+const findUserByEmail = `-- name: FindUserByEmail :one
+SELECT
+  id, email, name, password, image, refresh_token, created_at, updated_at
+FROM
+  users
+WHERE
+  email = $1
+LIMIT
+  1
+`
+
+func (q *Queries) FindUserByEmail(ctx context.Context, email string) (User, error) {
+	row := q.db.QueryRowContext(ctx, findUserByEmail, email)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Email,
+		&i.Name,
+		&i.Password,
+		&i.Image,
+		&i.RefreshToken,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const updateUserInfo = `-- name: UpdateUserInfo :one
+UPDATE users
+SET
+  "name" = $2,
+  "password" = $3,
+  "image" = $4
+WHERE
+  email = $1
+RETURNING
+  id, email, name, password, image, refresh_token, created_at, updated_at
+`
+
+type UpdateUserInfoParams struct {
+	Email    string
+	Name     string
+	Password string
+	Image    sql.NullString
+}
+
+func (q *Queries) UpdateUserInfo(ctx context.Context, arg UpdateUserInfoParams) (User, error) {
+	row := q.db.QueryRowContext(ctx, updateUserInfo,
+		arg.Email,
+		arg.Name,
+		arg.Password,
+		arg.Image,
+	)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Email,
+		&i.Name,
+		&i.Password,
+		&i.Image,
+		&i.RefreshToken,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const updateUserRefreshToken = `-- name: UpdateUserRefreshToken :one
+UPDATE users
+SET
+  refresh_token = $2
+WHERE
+  email = $1
+RETURNING
+  id, email, name, password, image, refresh_token, created_at, updated_at
+`
+
+type UpdateUserRefreshTokenParams struct {
+	Email        string
+	RefreshToken sql.NullString
+}
+
+func (q *Queries) UpdateUserRefreshToken(ctx context.Context, arg UpdateUserRefreshTokenParams) (User, error) {
+	row := q.db.QueryRowContext(ctx, updateUserRefreshToken, arg.Email, arg.RefreshToken)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Email,
+		&i.Name,
+		&i.Password,
+		&i.Image,
+		&i.RefreshToken,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}

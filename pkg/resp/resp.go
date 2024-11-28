@@ -39,3 +39,10 @@ func SetCookie(w http.ResponseWriter, key, value string) {
 		Secure:   true,
 	})
 }
+
+func DeleteCookie(w http.ResponseWriter, key string) {
+	http.SetCookie(w, &http.Cookie{
+		Name:   key,
+		MaxAge: -1,
+	})
+}

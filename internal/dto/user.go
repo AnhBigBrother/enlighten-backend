@@ -17,6 +17,12 @@ type UserLogIn struct {
 	Password string `json:"password"`
 }
 
+type UserUpdate struct {
+	Name     string `json:"name"`
+	Password string `json:"password"`
+	Image    string `json:"image"`
+}
+
 func (user *UserSignUp) ValidateInput() error {
 	emailRegex := regexp.MustCompile(`^[a-z0-9._%+\-]+@[a-z0-9.\-]+\.[a-z]{2,4}$`)
 	errArr := []string{}
@@ -43,6 +49,21 @@ func (user *UserLogIn) ValidateInput() error {
 		errArr = append(errArr, "invalid email")
 	}
 	if len(user.Password) < 6 {
+		errArr = append(errArr, "password too short")
+	}
+	if len(errArr) > 0 {
+		errMsg := strings.Join(errArr, ", ")
+		return errors.New(errMsg)
+	}
+	return nil
+}
+
+func (user *UserUpdate) ValidateInput() error {
+	errArr := []string{}
+	if len(user.Name) > 0 && len(user.Name) < 3 {
+		errArr = append(errArr, "name too short")
+	}
+	if len(user.Password) > 0 && len(user.Password) < 6 {
 		errArr = append(errArr, "password too short")
 	}
 	if len(errArr) > 0 {

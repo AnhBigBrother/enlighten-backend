@@ -51,7 +51,7 @@ func init() {
 	DbUri = dbUri
 	JwtSecret = jwtSecret
 	Port = port
-	AccessTokenAge = 30 * 60
-	RefreshTokenAge = 7 * 24 * 60 * 60
-	CookieAge = 7 * 24 * 60 * 60
+	AccessTokenAge = 30 * 60           // in second
+	RefreshTokenAge = 7 * 24 * 60 * 60 // in second
+	CookieAge = 7 * 24 * 60 * 60       // in second
 }
