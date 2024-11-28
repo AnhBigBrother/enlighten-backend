@@ -12,4 +12,7 @@ require github.com/golang-jwt/jwt/v5 v5.2.1
 
 require golang.org/x/crypto v0.29.0
 
-require github.com/rs/cors v1.11.1
+require (
+	github.com/rs/cors v1.11.1
+	golang.org/x/exp v0.0.0-20241108190413-2d47ceb2692f
+)

@@ -25,7 +25,15 @@ func RegisterRoutes() http.Handler {
 	userRouter.HandleFunc("GET /me/session", middleware.Auth(userApi.GetSesion))
 	userRouter.HandleFunc("GET /me/access_token", userApi.GetAccessToken)
 
+	oauthApi := handler.NewOauthApi()
+	oauthRouter := http.NewServeMux()
+	oauthRouter.HandleFunc("POST /google", oauthApi.OauthGoogle)
+	oauthRouter.HandleFunc("POST /github", oauthApi.OauthGithub)
+	oauthRouter.HandleFunc("POST /microsoft", oauthApi.OauthMicrosoft)
+	oauthRouter.HandleFunc("POST /discord", oauthApi.OauthDiscord)
+
 	router.Handle("/user/", http.StripPrefix("/user", userRouter))
+	router.Handle("/oauth/", http.StripPrefix("/oauth", oauthRouter))
 
 	return cors.New(cors.Options{
 		AllowedOrigins:   []string{"https://*", "http://*"},

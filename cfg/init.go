@@ -19,6 +19,11 @@ var (
 	AccessTokenAge  int
 	RefreshTokenAge int
 	CookieAge       int
+
+	GithubGetUserDataUrl    string
+	GoogleGetUserDataUrl    string
+	MicrosoftGetUserDataUrl string
+	DiscordGetUserDataUrl   string
 )
 
 func init() {
@@ -54,4 +59,9 @@ func init() {
 	AccessTokenAge = 30 * 60           // in second
 	RefreshTokenAge = 7 * 24 * 60 * 60 // in second
 	CookieAge = 7 * 24 * 60 * 60       // in second
+
+	GithubGetUserDataUrl = "https://api.github.com/user"
+	GoogleGetUserDataUrl = "https://www.googleapis.com/oauth2/v3/userinfo"
+	MicrosoftGetUserDataUrl = "https://graph.microsoft.com/oidc/userinfo"
+	DiscordGetUserDataUrl = "https://discord.com/api/v10/users/@me"
 }

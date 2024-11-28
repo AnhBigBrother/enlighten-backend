@@ -10,7 +10,7 @@ import (
 	"github.com/AnhBigBrother/enlighten-backend/internal/database"
 	"github.com/AnhBigBrother/enlighten-backend/internal/dto"
 	"github.com/AnhBigBrother/enlighten-backend/internal/models"
-	"github.com/AnhBigBrother/enlighten-backend/pkg/req"
+	"github.com/AnhBigBrother/enlighten-backend/pkg/parser"
 	"github.com/AnhBigBrother/enlighten-backend/pkg/resp"
 	"github.com/AnhBigBrother/enlighten-backend/pkg/token"
 	"github.com/golang-jwt/jwt/v5"
@@ -19,18 +19,18 @@ import (
 )
 
 type UserApi struct {
-	DB *database.Queries
+	DBTX *database.Queries
 }
 
 func NewUserApi() UserApi {
 	return UserApi{
-		DB: cfg.DBQueries,
+		DBTX: cfg.DBQueries,
 	}
 }
 
 func (userApi *UserApi) SignUp(w http.ResponseWriter, r *http.Request) {
 	params := dto.UserSignUp{}
-	err := req.ParseBody(r, &params)
+	err := parser.ParseBody(r.Body, &params)
 	if err != nil {
 		resp.Err(w, 400, err.Error())
 		return
@@ -63,7 +63,7 @@ func (userApi *UserApi) SignUp(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, err = userApi.DB.CreateUser(r.Context(), database.CreateUserParams{
+	_, err = userApi.DBTX.CreateUser(r.Context(), database.CreateUserParams{
 		ID:           userId,
 		Email:        params.Email,
 		Name:         params.Name,
@@ -103,7 +103,7 @@ func (userApi *UserApi) SignUp(w http.ResponseWriter, r *http.Request) {
 
 func (userApi *UserApi) SignIn(w http.ResponseWriter, r *http.Request) {
 	params := dto.UserLogIn{}
-	err := req.ParseBody(r, &params)
+	err := parser.ParseBody(r.Body, &params)
 	if err != nil {
 		resp.Err(w, 400, err.Error())
 		return
@@ -113,7 +113,7 @@ func (userApi *UserApi) SignIn(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user, err := userApi.DB.FindUserByEmail(r.Context(), params.Email)
+	user, err := userApi.DBTX.FindUserByEmail(r.Context(), params.Email)
 	if err != nil {
 		resp.Err(w, 401, err.Error())
 		return
@@ -154,7 +154,7 @@ func (userApi *UserApi) SignIn(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, err = userApi.DB.UpdateUserRefreshToken(r.Context(), database.UpdateUserRefreshTokenParams{
+	_, err = userApi.DBTX.UpdateUserRefreshToken(r.Context(), database.UpdateUserRefreshTokenParams{
 		Email:        params.Email,
 		RefreshToken: sql.NullString{String: refresh_token, Valid: true},
 	})
@@ -181,7 +181,7 @@ func (userApi *UserApi) SignOut(w http.ResponseWriter, r *http.Request) {
 	}
 	sessionEmail := session["email"].(string)
 
-	_, err := userApi.DB.UpdateUserRefreshToken(r.Context(), database.UpdateUserRefreshTokenParams{
+	_, err := userApi.DBTX.UpdateUserRefreshToken(r.Context(), database.UpdateUserRefreshTokenParams{
 		Email:        sessionEmail,
 		RefreshToken: sql.NullString{String: "", Valid: false},
 	})
@@ -207,7 +207,7 @@ func (userApi *UserApi) GetMe(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	sessionEmail := session["email"].(string)
-	currUser, err := userApi.DB.FindUserByEmail(r.Context(), sessionEmail)
+	currUser, err := userApi.DBTX.FindUserByEmail(r.Context(), sessionEmail)
 	if err != nil {
 		resp.Err(w, 404, err.Error())
 		return
@@ -220,7 +220,7 @@ func (userApi *UserApi) GetMe(w http.ResponseWriter, r *http.Request) {
 
 func (userApi *UserApi) UpdateMe(w http.ResponseWriter, r *http.Request) {
 	params := dto.UserUpdate{}
-	err := req.ParseBody(r, &params)
+	err := parser.ParseBody(r.Body, &params)
 	if err != nil {
 		resp.Err(w, 400, err.Error())
 		return
@@ -257,7 +257,7 @@ func (userApi *UserApi) UpdateMe(w http.ResponseWriter, r *http.Request) {
 	if len(params.Image) > 0 {
 		updateUserInfoParams.Name = params.Name
 	}
-	user, err := userApi.DB.UpdateUserInfo(r.Context(), updateUserInfoParams)
+	user, err := userApi.DBTX.UpdateUserInfo(r.Context(), updateUserInfoParams)
 	if err != nil {
 		resp.Err(w, 400, err.Error())
 		return
@@ -277,7 +277,7 @@ func (userApi *UserApi) DeleteMe(w http.ResponseWriter, r *http.Request) {
 	}
 	sessionEmail := session["email"].(string)
 
-	user, err := userApi.DB.FindUserByEmail(r.Context(), sessionEmail)
+	user, err := userApi.DBTX.FindUserByEmail(r.Context(), sessionEmail)
 	if err != nil {
 		resp.Err(w, 400, err.Error())
 		return
@@ -288,7 +288,7 @@ func (userApi *UserApi) DeleteMe(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = userApi.DB.DeleteUserInfo(r.Context(), sessionEmail)
+	err = userApi.DBTX.DeleteUserInfo(r.Context(), sessionEmail)
 	if err != nil {
 		resp.Err(w, 400, err.Error())
 		return
@@ -364,7 +364,7 @@ func (userApi *UserApi) GetAccessToken(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	userApi.DB.UpdateUserRefreshToken(r.Context(), database.UpdateUserRefreshTokenParams{
+	userApi.DBTX.UpdateUserRefreshToken(r.Context(), database.UpdateUserRefreshTokenParams{
 		Email:        claims["email"].(string),
 		RefreshToken: sql.NullString{String: new_refresh_token, Valid: true},
 	})
