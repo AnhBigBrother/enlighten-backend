@@ -63,7 +63,7 @@ func (userApi *UserApi) SignUp(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, err = userApi.DBTX.CreateUser(r.Context(), database.CreateUserParams{
+	createUserParams := database.CreateUserParams{
 		ID:           userId,
 		Email:        params.Email,
 		Name:         params.Name,
@@ -71,7 +71,12 @@ func (userApi *UserApi) SignUp(w http.ResponseWriter, r *http.Request) {
 		RefreshToken: sql.NullString{String: refresh_token, Valid: true},
 		CreatedAt:    currentTime,
 		UpdatedAt:    currentTime,
-	})
+	}
+	if params.Image != "" {
+		createUserParams.Image = sql.NullString{String: params.Image, Valid: true}
+	}
+
+	_, err = userApi.DBTX.CreateUser(r.Context(), createUserParams)
 	if err != nil {
 		resp.Err(w, 400, err.Error())
 		return
@@ -80,6 +85,7 @@ func (userApi *UserApi) SignUp(w http.ResponseWriter, r *http.Request) {
 	access_token, err := token.Sign(token.Claims{
 		Email: params.Email,
 		Name:  params.Name,
+		Image: params.Image,
 		RegisteredClaims: jwt.RegisteredClaims{
 			IssuedAt:  jwt.NewNumericDate(currentTime),
 			ExpiresAt: jwt.NewNumericDate(currentTime.Add(time.Duration(cfg.AccessTokenAge) * time.Second)),
@@ -187,8 +193,7 @@ func (userApi *UserApi) SignOut(w http.ResponseWriter, r *http.Request) {
 	})
 
 	if err != nil {
-		resp.Err(w, 400, err.Error())
-		return
+		log.Println(err.Error())
 	}
 
 	resp.DeleteCookie(w, "access_token")
@@ -335,20 +340,6 @@ func (userApi *UserApi) GetAccessToken(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	access_token, err := token.Sign(token.Claims{
-		Email: claims["email"].(string),
-		Name:  claims["name"].(string),
-		RegisteredClaims: jwt.RegisteredClaims{
-			IssuedAt:  jwt.NewNumericDate(currentTime),
-			ExpiresAt: jwt.NewNumericDate(currentTime.Add(time.Duration(cfg.AccessTokenAge) * time.Second)),
-			ID:        claims["jti"].(string),
-			Subject:   "access_token",
-		},
-	})
-	if err != nil {
-		resp.Err(w, 500, err.Error())
-		return
-	}
 	new_refresh_token, err := token.Sign(token.Claims{
 		Email: claims["email"].(string),
 		Name:  claims["name"].(string),
@@ -360,14 +351,34 @@ func (userApi *UserApi) GetAccessToken(w http.ResponseWriter, r *http.Request) {
 		},
 	})
 	if err != nil {
-		resp.Err(w, 500, err.Error())
+		resp.Err(w, 403, err.Error())
 		return
 	}
 
-	userApi.DBTX.UpdateUserRefreshToken(r.Context(), database.UpdateUserRefreshTokenParams{
+	user, err := userApi.DBTX.UpdateUserRefreshToken(r.Context(), database.UpdateUserRefreshTokenParams{
 		Email:        claims["email"].(string),
 		RefreshToken: sql.NullString{String: new_refresh_token, Valid: true},
 	})
+	if err != nil {
+		resp.Err(w, 404, err.Error())
+		return
+	}
+
+	access_token, err := token.Sign(token.Claims{
+		Email: claims["email"].(string),
+		Name:  claims["name"].(string),
+		Image: user.Image.String,
+		RegisteredClaims: jwt.RegisteredClaims{
+			IssuedAt:  jwt.NewNumericDate(currentTime),
+			ExpiresAt: jwt.NewNumericDate(currentTime.Add(time.Duration(cfg.AccessTokenAge) * time.Second)),
+			ID:        claims["jti"].(string),
+			Subject:   "access_token",
+		},
+	})
+	if err != nil {
+		resp.Err(w, 500, err.Error())
+		return
+	}
 
 	resp.SetCookie(w, "access_token", access_token)
 	resp.SetCookie(w, "refresh_token", new_refresh_token)

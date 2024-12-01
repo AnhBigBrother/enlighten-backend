@@ -10,6 +10,7 @@ type UserSignUp struct {
 	Name     string `json:"name"`
 	Email    string `json:"email"`
 	Password string `json:"password"`
+	Image    string `json:"image"`
 }
 
 type UserLogIn struct {
@@ -24,7 +25,7 @@ type UserUpdate struct {
 }
 
 func (user *UserSignUp) ValidateInput() error {
-	emailRegex := regexp.MustCompile(`^[a-z0-9._%+\-]+@[a-z0-9.\-]+\.[a-z]{2,4}$`)
+	emailRegex := regexp.MustCompile(`^[a-zA-Z0-9._%+\-]+@[a-z0-9.\-]+\.[a-z]{2,4}$`)
 	errArr := []string{}
 	if !emailRegex.MatchString(user.Email) {
 		errArr = append(errArr, "invalid email")

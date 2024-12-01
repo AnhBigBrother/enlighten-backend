@@ -33,6 +33,7 @@ func SetCookie(w http.ResponseWriter, key, value string) {
 	http.SetCookie(w, &http.Cookie{
 		Name:     key,
 		Value:    value,
+		Path:     "/",
 		MaxAge:   cfg.CookieAge,
 		HttpOnly: true,
 		SameSite: http.SameSiteNoneMode,
@@ -42,7 +43,10 @@ func SetCookie(w http.ResponseWriter, key, value string) {
 
 func DeleteCookie(w http.ResponseWriter, key string) {
 	http.SetCookie(w, &http.Cookie{
-		Name:   key,
-		MaxAge: -1,
+		Name:     key,
+		Value:    "",
+		Path:     "/",
+		MaxAge:   -1,
+		HttpOnly: true,
 	})
 }

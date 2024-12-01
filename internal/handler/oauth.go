@@ -14,12 +14,16 @@ import (
 	"github.com/AnhBigBrother/enlighten-backend/pkg/resp"
 	"github.com/AnhBigBrother/enlighten-backend/pkg/token"
 	"github.com/golang-jwt/jwt/v5"
-	"github.com/google/uuid"
-	"golang.org/x/crypto/bcrypt"
 )
 
 type OauthApi struct {
 	DBTX *database.Queries
+}
+
+type oauthUserInfo struct {
+	Email   string `json:"email"`
+	Name    string `json:"name"`
+	Picture string `json:"picture"`
 }
 
 func NewOauthApi() OauthApi {
@@ -36,8 +40,18 @@ func (oauthApi *OauthApi) OauthGoogle(w http.ResponseWriter, r *http.Request) {
 		resp.Err(w, 404, err.Error())
 		return
 	}
-	access_token, refresh_token, err := oauthApi.getOrCreateUser(userData)
+	access_token, refresh_token, err := oauthApi.signInOauthUser(userData)
 	if err != nil {
+		if err.Error() == "unregistered user" {
+			resp.Json(w, 202, struct {
+				Message  string        `json:"message"`
+				UserInfo oauthUserInfo `json:"user_info"`
+			}{
+				Message:  "user need to registered",
+				UserInfo: userData,
+			})
+			return
+		}
 		resp.Err(w, 500, err.Error())
 		return
 	}
@@ -59,8 +73,18 @@ func (oauthApi *OauthApi) OauthGithub(w http.ResponseWriter, r *http.Request) {
 		resp.Err(w, 404, err.Error())
 		return
 	}
-	access_token, refresh_token, err := oauthApi.getOrCreateUser(userData)
+	access_token, refresh_token, err := oauthApi.signInOauthUser(userData)
 	if err != nil {
+		if err.Error() == "unregistered user" {
+			resp.Json(w, 202, struct {
+				Message  string        `json:"message"`
+				UserInfo oauthUserInfo `json:"user_info"`
+			}{
+				Message:  "user need to registered",
+				UserInfo: userData,
+			})
+			return
+		}
 		resp.Err(w, 500, err.Error())
 		return
 	}
@@ -82,8 +106,18 @@ func (oauthApi *OauthApi) OauthMicrosoft(w http.ResponseWriter, r *http.Request)
 		resp.Err(w, 404, err.Error())
 		return
 	}
-	access_token, refresh_token, err := oauthApi.getOrCreateUser(userData)
+	access_token, refresh_token, err := oauthApi.signInOauthUser(userData)
 	if err != nil {
+		if err.Error() == "unregistered user" {
+			resp.Json(w, 202, struct {
+				Message  string        `json:"message"`
+				UserInfo oauthUserInfo `json:"user_info"`
+			}{
+				Message:  "user need to registered",
+				UserInfo: userData,
+			})
+			return
+		}
 		resp.Err(w, 500, err.Error())
 		return
 	}
@@ -105,8 +139,18 @@ func (oauthApi *OauthApi) OauthDiscord(w http.ResponseWriter, r *http.Request) {
 		resp.Err(w, 404, err.Error())
 		return
 	}
-	access_token, refresh_token, err := oauthApi.getOrCreateUser(userData)
+	access_token, refresh_token, err := oauthApi.signInOauthUser(userData)
 	if err != nil {
+		if err.Error() == "unregistered user" {
+			resp.Json(w, 202, struct {
+				Message  string        `json:"message"`
+				UserInfo oauthUserInfo `json:"user_info"`
+			}{
+				Message:  "user need to registered",
+				UserInfo: userData,
+			})
+			return
+		}
 		resp.Err(w, 500, err.Error())
 		return
 	}
@@ -118,12 +162,6 @@ func (oauthApi *OauthApi) OauthDiscord(w http.ResponseWriter, r *http.Request) {
 		AccessToken  string `json:"access_token"`
 		RefreshToken string `json:"refresh_token"`
 	}{AccessToken: access_token, RefreshToken: refresh_token})
-}
-
-type oauthUserInfo struct {
-	Email   string `json:"email"`
-	Name    string `json:"name"`
-	Picture string `json:"picture"`
 }
 
 func (oauthApi *OauthApi) callGoogle(tokenType, accessToken string) (oauthUserInfo, error) {
@@ -159,7 +197,6 @@ func (oauthApi *OauthApi) callGithub(tokenType, accessToken string) (oauthUserIn
 		return oauthUserInfo{}, err
 	}
 	userInfo := struct {
-		Email     string `json:"email"`
 		Name      string `json:"name"`
 		AvatarUrl string `json:"avatar_url"`
 	}{}
@@ -174,13 +211,14 @@ func (oauthApi *OauthApi) callGithub(tokenType, accessToken string) (oauthUserIn
 	if err != nil {
 		return oauthUserInfo{}, err
 	}
-	err = parser.ParseBody(emailRes.Body, &userInfo)
+	emailResData := []interface{}{}
+	err = parser.ParseBody(emailRes.Body, &emailResData)
 	if err != nil {
 		return oauthUserInfo{}, err
 	}
 
 	return oauthUserInfo{
-		Email:   userInfo.Email,
+		Email:   emailResData[0].(map[string]interface{})["email"].(string),
 		Name:    userInfo.Name,
 		Picture: userInfo.AvatarUrl,
 	}, nil
@@ -233,54 +271,11 @@ func (oauthApi *OauthApi) callDiscord(tokenType, accessToken string) (oauthUserI
 	}, nil
 }
 
-func (oauthApi *OauthApi) getOrCreateUser(user oauthUserInfo) (string, string, error) {
+func (oauthApi *OauthApi) signInOauthUser(user oauthUserInfo) (string, string, error) {
 	dbUser, err := oauthApi.DBTX.FindUserByEmail(context.Background(), user.Email)
 
 	if err != nil {
-		currentTime := time.Now()
-		userId := uuid.New()
-		refresh_token, err := token.Sign(token.Claims{
-			Email: user.Email,
-			Name:  user.Name,
-			RegisteredClaims: jwt.RegisteredClaims{
-				IssuedAt:  jwt.NewNumericDate(currentTime),
-				ExpiresAt: jwt.NewNumericDate(currentTime.Add(time.Duration(cfg.RefreshTokenAge) * time.Second)),
-				ID:        userId.String(),
-				Subject:   "refresh_token",
-			},
-		})
-		if err != nil {
-			return "", "", err
-		}
-		password := token.RandString(12)
-		hashedPassword, _ := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
-		_, err = oauthApi.DBTX.CreateUser(context.Background(), database.CreateUserParams{
-			ID:        userId,
-			Email:     user.Email,
-			Name:      user.Name,
-			Password:  string(hashedPassword),
-			Image:     sql.NullString{String: user.Picture, Valid: true},
-			CreatedAt: currentTime,
-			UpdatedAt: currentTime,
-		})
-		if err != nil {
-			return "", "", err
-		}
-		access_token, err := token.Sign(token.Claims{
-			Email: user.Email,
-			Name:  user.Name,
-			Image: user.Picture,
-			RegisteredClaims: jwt.RegisteredClaims{
-				IssuedAt:  jwt.NewNumericDate(currentTime),
-				ExpiresAt: jwt.NewNumericDate(currentTime.Add(time.Duration(cfg.AccessTokenAge) * time.Second)),
-				ID:        userId.String(),
-				Subject:   "access_token",
-			},
-		})
-		if err != nil {
-			return "", "", nil
-		}
-		return access_token, refresh_token, nil
+		return "", "", errors.New("unregistered user")
 	}
 
 	currentTime := time.Now()
