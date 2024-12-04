@@ -16,7 +16,6 @@ RETURNING
   *
 ;
 
-
 -- name: FindUserByEmail :one
 SELECT
   *
@@ -28,7 +27,6 @@ LIMIT
   1
 ;
 
-
 -- name: UpdateUserRefreshToken :one
 UPDATE users
 SET
@@ -38,7 +36,6 @@ WHERE
 RETURNING
   *
 ;
-
 
 -- name: UpdateUserInfo :one
 UPDATE users
@@ -51,7 +48,6 @@ WHERE
 RETURNING
   *
 ;
-
 
 -- name: DeleteUserInfo :exec
 DELETE FROM users

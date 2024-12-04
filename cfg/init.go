@@ -5,13 +5,14 @@ import (
 	"log"
 	"os"
 
-	"github.com/AnhBigBrother/enlighten-backend/internal/database"
-
-	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
+
+	"github.com/AnhBigBrother/enlighten-backend/internal/database"
+	"github.com/joho/godotenv"
 )
 
 var (
+	DBConnection    *sql.DB
 	DBQueries       *database.Queries
 	DbUri           string
 	JwtSecret       string
@@ -49,9 +50,11 @@ func init() {
 	conn, err := sql.Open("postgres", dbUri)
 	if err != nil {
 		log.Fatal("Cannot connect to database")
+		log.Println(err)
 	}
 	log.Println("Connected to database")
 
+	DBConnection = conn
 	DBQueries = database.New(conn)
 	DbUri = dbUri
 	JwtSecret = jwtSecret

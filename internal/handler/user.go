@@ -19,12 +19,12 @@ import (
 )
 
 type UserApi struct {
-	DBTX *database.Queries
+	DB *database.Queries
 }
 
 func NewUserApi() UserApi {
 	return UserApi{
-		DBTX: cfg.DBQueries,
+		DB: cfg.DBQueries,
 	}
 }
 
@@ -76,7 +76,7 @@ func (userApi *UserApi) SignUp(w http.ResponseWriter, r *http.Request) {
 		createUserParams.Image = sql.NullString{String: params.Image, Valid: true}
 	}
 
-	_, err = userApi.DBTX.CreateUser(r.Context(), createUserParams)
+	_, err = userApi.DB.CreateUser(r.Context(), createUserParams)
 	if err != nil {
 		resp.Err(w, 400, err.Error())
 		return
@@ -119,9 +119,9 @@ func (userApi *UserApi) SignIn(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user, err := userApi.DBTX.FindUserByEmail(r.Context(), params.Email)
+	user, err := userApi.DB.FindUserByEmail(r.Context(), params.Email)
 	if err != nil {
-		resp.Err(w, 401, err.Error())
+		resp.Err(w, 404, err.Error())
 		return
 	}
 
@@ -134,6 +134,7 @@ func (userApi *UserApi) SignIn(w http.ResponseWriter, r *http.Request) {
 	access_token, err := token.Sign(token.Claims{
 		Email: params.Email,
 		Name:  user.Name,
+		Image: user.Image.String,
 		RegisteredClaims: jwt.RegisteredClaims{
 			IssuedAt:  jwt.NewNumericDate(currentTime),
 			ExpiresAt: jwt.NewNumericDate(currentTime.Add(time.Duration(cfg.AccessTokenAge) * time.Second)),
@@ -160,7 +161,7 @@ func (userApi *UserApi) SignIn(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, err = userApi.DBTX.UpdateUserRefreshToken(r.Context(), database.UpdateUserRefreshTokenParams{
+	_, err = userApi.DB.UpdateUserRefreshToken(r.Context(), database.UpdateUserRefreshTokenParams{
 		Email:        params.Email,
 		RefreshToken: sql.NullString{String: refresh_token, Valid: true},
 	})
@@ -181,13 +182,13 @@ func (userApi *UserApi) SignIn(w http.ResponseWriter, r *http.Request) {
 func (userApi *UserApi) SignOut(w http.ResponseWriter, r *http.Request) {
 	session, ok := r.Context().Value("user").(map[string]interface{})
 	if !ok {
-		log.Println("Server error: route need nested inside auth middleware")
+		log.Println("Server error: route must nested inside auth middleware")
 		resp.Json(w, 500, "server error: something went wrong")
 		return
 	}
 	sessionEmail := session["email"].(string)
 
-	_, err := userApi.DBTX.UpdateUserRefreshToken(r.Context(), database.UpdateUserRefreshTokenParams{
+	_, err := userApi.DB.UpdateUserRefreshToken(r.Context(), database.UpdateUserRefreshTokenParams{
 		Email:        sessionEmail,
 		RefreshToken: sql.NullString{String: "", Valid: false},
 	})
@@ -207,12 +208,12 @@ func (userApi *UserApi) SignOut(w http.ResponseWriter, r *http.Request) {
 func (userApi *UserApi) GetMe(w http.ResponseWriter, r *http.Request) {
 	session, ok := r.Context().Value("user").(map[string]interface{})
 	if !ok {
-		log.Println("Server error: route need nested inside auth middleware")
+		log.Println("Server error: route must nested inside auth middleware")
 		resp.Json(w, 500, "server error: something went wrong")
 		return
 	}
 	sessionEmail := session["email"].(string)
-	currUser, err := userApi.DBTX.FindUserByEmail(r.Context(), sessionEmail)
+	currUser, err := userApi.DB.FindUserByEmail(r.Context(), sessionEmail)
 	if err != nil {
 		resp.Err(w, 404, err.Error())
 		return
@@ -245,7 +246,7 @@ func (userApi *UserApi) UpdateMe(w http.ResponseWriter, r *http.Request) {
 
 	session, ok := r.Context().Value("user").(map[string]interface{})
 	if !ok {
-		log.Println("Server error: route need nested inside auth middleware")
+		log.Println("Server error: route must nested inside auth middleware")
 		resp.Json(w, 500, "server error: something went wrong")
 		return
 	}
@@ -262,7 +263,7 @@ func (userApi *UserApi) UpdateMe(w http.ResponseWriter, r *http.Request) {
 	if len(params.Image) > 0 {
 		updateUserInfoParams.Name = params.Name
 	}
-	user, err := userApi.DBTX.UpdateUserInfo(r.Context(), updateUserInfoParams)
+	user, err := userApi.DB.UpdateUserInfo(r.Context(), updateUserInfoParams)
 	if err != nil {
 		resp.Err(w, 400, err.Error())
 		return
@@ -276,13 +277,13 @@ func (userApi *UserApi) DeleteMe(w http.ResponseWriter, r *http.Request) {
 	password := r.URL.Query().Get("password")
 	session, ok := r.Context().Value("user").(map[string]interface{})
 	if !ok {
-		log.Println("Server error: route need nested inside auth middleware")
+		log.Println("Server error: route must nested inside auth middleware")
 		resp.Json(w, 500, "server error: something went wrong")
 		return
 	}
 	sessionEmail := session["email"].(string)
 
-	user, err := userApi.DBTX.FindUserByEmail(r.Context(), sessionEmail)
+	user, err := userApi.DB.FindUserByEmail(r.Context(), sessionEmail)
 	if err != nil {
 		resp.Err(w, 400, err.Error())
 		return
@@ -293,7 +294,7 @@ func (userApi *UserApi) DeleteMe(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = userApi.DBTX.DeleteUserInfo(r.Context(), sessionEmail)
+	err = userApi.DB.DeleteUserInfo(r.Context(), sessionEmail)
 	if err != nil {
 		resp.Err(w, 400, err.Error())
 		return
@@ -310,7 +311,7 @@ func (userApi *UserApi) DeleteMe(w http.ResponseWriter, r *http.Request) {
 func (userApi *UserApi) GetSesion(w http.ResponseWriter, r *http.Request) {
 	session, ok := r.Context().Value("user").(map[string]interface{})
 	if !ok {
-		log.Println("Server error: route need nested inside auth middleware")
+		log.Println("Server error: route must nested inside auth middleware")
 		resp.Json(w, 500, "server error: something went wrong")
 		return
 	}
@@ -355,7 +356,7 @@ func (userApi *UserApi) GetAccessToken(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user, err := userApi.DBTX.UpdateUserRefreshToken(r.Context(), database.UpdateUserRefreshTokenParams{
+	user, err := userApi.DB.UpdateUserRefreshToken(r.Context(), database.UpdateUserRefreshTokenParams{
 		Email:        claims["email"].(string),
 		RefreshToken: sql.NullString{String: new_refresh_token, Valid: true},
 	})

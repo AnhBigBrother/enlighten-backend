@@ -17,7 +17,7 @@ import (
 )
 
 type OauthApi struct {
-	DBTX *database.Queries
+	DB *database.Queries
 }
 
 type oauthUserInfo struct {
@@ -28,7 +28,7 @@ type oauthUserInfo struct {
 
 func NewOauthApi() OauthApi {
 	return OauthApi{
-		DBTX: cfg.DBQueries,
+		DB: cfg.DBQueries,
 	}
 }
 
@@ -272,7 +272,7 @@ func (oauthApi *OauthApi) callDiscord(tokenType, accessToken string) (oauthUserI
 }
 
 func (oauthApi *OauthApi) signInOauthUser(user oauthUserInfo) (string, string, error) {
-	dbUser, err := oauthApi.DBTX.FindUserByEmail(context.Background(), user.Email)
+	dbUser, err := oauthApi.DB.FindUserByEmail(context.Background(), user.Email)
 
 	if err != nil {
 		return "", "", errors.New("unregistered user")
@@ -307,7 +307,7 @@ func (oauthApi *OauthApi) signInOauthUser(user oauthUserInfo) (string, string, e
 		return "", "", nil
 	}
 
-	_, err = oauthApi.DBTX.UpdateUserRefreshToken(context.Background(), database.UpdateUserRefreshTokenParams{
+	_, err = oauthApi.DB.UpdateUserRefreshToken(context.Background(), database.UpdateUserRefreshTokenParams{
 		Email:        dbUser.Email,
 		RefreshToken: sql.NullString{String: refresh_token, Valid: true},
 	})
