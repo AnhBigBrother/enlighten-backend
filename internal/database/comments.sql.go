@@ -13,7 +13,7 @@ import (
 	"github.com/google/uuid"
 )
 
-const createComment = `-- name: CreateComment :exec
+const createComment = `-- name: CreateComment :one
 INSERT INTO
   COMMENTS (
     "id",
@@ -25,6 +25,8 @@ INSERT INTO
   )
 VALUES
   ($1, $2, $3, $4, $5, $6)
+RETURNING
+  id, comment, author_id, post_id, parent_comment_id, up_voted, down_voted, created_at
 `
 
 type CreateCommentParams struct {
@@ -36,8 +38,8 @@ type CreateCommentParams struct {
 	CreatedAt       time.Time
 }
 
-func (q *Queries) CreateComment(ctx context.Context, arg CreateCommentParams) error {
-	_, err := q.db.ExecContext(ctx, createComment,
+func (q *Queries) CreateComment(ctx context.Context, arg CreateCommentParams) (Comment, error) {
+	row := q.db.QueryRowContext(ctx, createComment,
 		arg.ID,
 		arg.Comment,
 		arg.AuthorID,
@@ -45,7 +47,18 @@ func (q *Queries) CreateComment(ctx context.Context, arg CreateCommentParams) er
 		arg.ParentCommentID,
 		arg.CreatedAt,
 	)
-	return err
+	var i Comment
+	err := row.Scan(
+		&i.ID,
+		&i.Comment,
+		&i.AuthorID,
+		&i.PostID,
+		&i.ParentCommentID,
+		&i.UpVoted,
+		&i.DownVoted,
+		&i.CreatedAt,
+	)
+	return i, err
 }
 
 const getCommentsReplies = `-- name: GetCommentsReplies :many

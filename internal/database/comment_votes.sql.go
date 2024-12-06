@@ -16,8 +16,8 @@ const changeVoteComment = `-- name: ChangeVoteComment :exec
 UPDATE comment_votes
 SET
   voted = CASE
-    WHEN voted = 'up' THEN 'down'
-    ELSE 'up'
+    WHEN voted = 'up'::VOTED THEN 'down'::VOTED
+    ELSE 'up'::VOTED
   END
 WHERE
   id = $1
@@ -116,6 +116,36 @@ type FindCommentVoteParams struct {
 
 func (q *Queries) FindCommentVote(ctx context.Context, arg FindCommentVoteParams) (CommentVote, error) {
 	row := q.db.QueryRowContext(ctx, findCommentVote, arg.VoterID, arg.CommentID)
+	var i CommentVote
+	err := row.Scan(
+		&i.ID,
+		&i.Voted,
+		&i.VoterID,
+		&i.CommentID,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const getCommentVotes = `-- name: GetCommentVotes :one
+SELECT
+  id, voted, voter_id, comment_id, created_at
+FROM
+  comment_votes
+WHERE
+  comment_id = $1
+  AND voter_id = $2
+LIMIT
+  1
+`
+
+type GetCommentVotesParams struct {
+	CommentID uuid.UUID
+	VoterID   uuid.UUID
+}
+
+func (q *Queries) GetCommentVotes(ctx context.Context, arg GetCommentVotesParams) (CommentVote, error) {
+	row := q.db.QueryRowContext(ctx, getCommentVotes, arg.CommentID, arg.VoterID)
 	var i CommentVote
 	err := row.Scan(
 		&i.ID,

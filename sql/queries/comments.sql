@@ -1,4 +1,4 @@
--- name: CreateComment :exec
+-- name: CreateComment :one
 INSERT INTO
   COMMENTS (
     "id",
@@ -10,6 +10,8 @@ INSERT INTO
   )
 VALUES
   ($1, $2, $3, $4, $5, $6)
+RETURNING
+  *
 ;
 
 -- name: GetCommentsReplies :many

@@ -226,9 +226,9 @@ func (q *Queries) GetPostById(ctx context.Context, id uuid.UUID) (GetPostByIdRow
 const getPostComments = `-- name: GetPostComments :many
 SELECT
   pc.id, pc.comment, pc.author_id, pc.post_id, pc.parent_comment_id, pc.up_voted, pc.down_voted, pc.created_at,
-  u.email AS user_email,
-  u.name AS user_name,
-  u.image AS user_image
+  u.email AS author_email,
+  u.name AS author_name,
+  u.image AS author_image
 FROM
   (
     SELECT
@@ -253,9 +253,9 @@ type GetPostCommentsRow struct {
 	UpVoted         int32
 	DownVoted       int32
 	CreatedAt       time.Time
-	UserEmail       sql.NullString
-	UserName        sql.NullString
-	UserImage       sql.NullString
+	AuthorEmail     sql.NullString
+	AuthorName      sql.NullString
+	AuthorImage     sql.NullString
 }
 
 func (q *Queries) GetPostComments(ctx context.Context, postID uuid.UUID) ([]GetPostCommentsRow, error) {
@@ -276,9 +276,9 @@ func (q *Queries) GetPostComments(ctx context.Context, postID uuid.UUID) ([]GetP
 			&i.UpVoted,
 			&i.DownVoted,
 			&i.CreatedAt,
-			&i.UserEmail,
-			&i.UserName,
-			&i.UserImage,
+			&i.AuthorEmail,
+			&i.AuthorName,
+			&i.AuthorImage,
 		); err != nil {
 			return nil, err
 		}
@@ -291,6 +291,36 @@ func (q *Queries) GetPostComments(ctx context.Context, postID uuid.UUID) ([]GetP
 		return nil, err
 	}
 	return items, nil
+}
+
+const getPostVotes = `-- name: GetPostVotes :one
+SELECT
+  id, voted, voter_id, post_id, created_at
+FROM
+  post_votes
+WHERE
+  post_id = $1
+  AND voter_id = $2
+LIMIT
+  1
+`
+
+type GetPostVotesParams struct {
+	PostID  uuid.UUID
+	VoterID uuid.UUID
+}
+
+func (q *Queries) GetPostVotes(ctx context.Context, arg GetPostVotesParams) (PostVote, error) {
+	row := q.db.QueryRowContext(ctx, getPostVotes, arg.PostID, arg.VoterID)
+	var i PostVote
+	err := row.Scan(
+		&i.ID,
+		&i.Voted,
+		&i.VoterID,
+		&i.PostID,
+		&i.CreatedAt,
+	)
+	return i, err
 }
 
 const increPostCommentCount = `-- name: IncrePostCommentCount :exec

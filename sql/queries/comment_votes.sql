@@ -25,8 +25,8 @@ VALUES
 UPDATE comment_votes
 SET
   voted = CASE
-    WHEN voted = 'up' THEN 'down'
-    ELSE 'up'
+    WHEN voted = 'up'::VOTED THEN 'down'::VOTED
+    ELSE 'up'::VOTED
   END
 WHERE
   id = $1
@@ -70,4 +70,16 @@ SET
 WHERE
   id = $1
   AND down_voted > 0
+;
+
+-- name: GetCommentVotes :one
+SELECT
+  *
+FROM
+  comment_votes
+WHERE
+  comment_id = $1
+  AND voter_id = $2
+LIMIT
+  1
 ;

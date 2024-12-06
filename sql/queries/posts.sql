@@ -59,9 +59,9 @@ ORDER BY
 -- name: GetPostComments :many
 SELECT
   pc.*,
-  u.email AS user_email,
-  u.name AS user_name,
-  u.image AS user_image
+  u.email AS author_email,
+  u.name AS author_name,
+  u.image AS author_image
 FROM
   (
     SELECT
@@ -83,4 +83,16 @@ SET
   comments_count = comments_count + 1
 WHERE
   id = $1
+;
+
+-- name: GetPostVotes :one
+SELECT
+  *
+FROM
+  post_votes
+WHERE
+  post_id = $1
+  AND voter_id = $2
+LIMIT
+  1
 ;

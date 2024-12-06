@@ -180,15 +180,15 @@ func (q *Queries) VotePost(ctx context.Context, db *sql.DB, voter_id, post_id uu
 	return tx.Commit()
 }
 
-func (q *Queries) AddComment(ctx context.Context, db *sql.DB, comment string, author_id, post_id uuid.UUID, parent_comment_id uuid.NullUUID) error {
+func (q *Queries) AddComment(ctx context.Context, db *sql.DB, comment string, author_id, post_id uuid.UUID, parent_comment_id uuid.NullUUID) (Comment, error) {
 	tx, err := db.Begin()
 	if err != nil {
-		return err
+		return Comment{}, err
 	}
 	defer tx.Rollback()
 
 	qtx := q.WithTx(tx)
-	err = qtx.CreateComment(ctx, CreateCommentParams{
+	comm, err := qtx.CreateComment(ctx, CreateCommentParams{
 		ID:              uuid.New(),
 		Comment:         comment,
 		AuthorID:        author_id,
@@ -197,12 +197,12 @@ func (q *Queries) AddComment(ctx context.Context, db *sql.DB, comment string, au
 		CreatedAt:       time.Now(),
 	})
 	if err != nil {
-		return err
+		return Comment{}, err
 	}
 	err = qtx.IncrePostCommentCount(ctx, post_id)
 	if err != nil {
-		return err
+		return Comment{}, err
 	}
 
-	return tx.Commit()
+	return comm, tx.Commit()
 }

@@ -59,7 +59,7 @@ func (postApi *PostApi) CreatePost(w http.ResponseWriter, r *http.Request) {
 	authorId, _ := session["jti"].(string)
 	authorUuid, err := uuid.Parse(authorId)
 	if err != nil {
-		resp.Err(w, 403, err.Error())
+		resp.Err(w, 400, err.Error())
 		return
 	}
 	currentTime := time.Now()
@@ -79,10 +79,10 @@ func (postApi *PostApi) CreatePost(w http.ResponseWriter, r *http.Request) {
 }
 
 func (postApi *PostApi) GetPostById(w http.ResponseWriter, r *http.Request) {
-	postId := r.PathValue("id")
+	postId := r.PathValue("post_id")
 	postUUID, err := uuid.Parse(postId)
 	if err != nil {
-		resp.Err(w, 403, err.Error())
+		resp.Err(w, 400, err.Error())
 		return
 	}
 	post, err := postApi.DB.GetPostById(r.Context(), postUUID)
@@ -94,10 +94,10 @@ func (postApi *PostApi) GetPostById(w http.ResponseWriter, r *http.Request) {
 }
 
 func (postApi *PostApi) UpVotePost(w http.ResponseWriter, r *http.Request) {
-	postId := r.PathValue("id")
+	postId := r.PathValue("post_id")
 	postUUID, err := uuid.Parse(postId)
 	if err != nil {
-		resp.Err(w, 403, err.Error())
+		resp.Err(w, 400, err.Error())
 		return
 	}
 	session, ok := r.Context().Value("user").(map[string]interface{})
@@ -109,12 +109,12 @@ func (postApi *PostApi) UpVotePost(w http.ResponseWriter, r *http.Request) {
 	authorId, _ := session["jti"].(string)
 	authorUuid, err := uuid.Parse(authorId)
 	if err != nil {
-		resp.Err(w, 403, err.Error())
+		resp.Err(w, 400, err.Error())
 		return
 	}
 	err = postApi.DB.VotePost(r.Context(), cfg.DBConnection, authorUuid, postUUID, "up")
 	if err != nil {
-		resp.Err(w, 403, err.Error())
+		resp.Err(w, 400, err.Error())
 		return
 	}
 
@@ -124,10 +124,10 @@ func (postApi *PostApi) UpVotePost(w http.ResponseWriter, r *http.Request) {
 }
 
 func (postApi *PostApi) DownVotePost(w http.ResponseWriter, r *http.Request) {
-	postId := r.PathValue("id")
+	postId := r.PathValue("post_id")
 	postUUID, err := uuid.Parse(postId)
 	if err != nil {
-		resp.Err(w, 403, err.Error())
+		resp.Err(w, 400, err.Error())
 		return
 	}
 	session, ok := r.Context().Value("user").(map[string]interface{})
@@ -139,18 +139,52 @@ func (postApi *PostApi) DownVotePost(w http.ResponseWriter, r *http.Request) {
 	authorId, _ := session["jti"].(string)
 	authorUuid, err := uuid.Parse(authorId)
 	if err != nil {
-		resp.Err(w, 403, err.Error())
+		resp.Err(w, 400, err.Error())
 		return
 	}
 	err = postApi.DB.VotePost(r.Context(), cfg.DBConnection, authorUuid, postUUID, "down")
 	if err != nil {
-		resp.Err(w, 403, err.Error())
+		resp.Err(w, 400, err.Error())
 		return
 	}
 
 	resp.Json(w, 201, struct {
 		Message string `json:"message"`
 	}{Message: "success"})
+}
+
+func (postApi *PostApi) CheckVoted(w http.ResponseWriter, r *http.Request) {
+	postId := r.PathValue("post_id")
+	postUUID, err := uuid.Parse(postId)
+	if err != nil {
+		resp.Err(w, 400, err.Error())
+		return
+	}
+	session, ok := r.Context().Value("user").(map[string]interface{})
+	if !ok {
+		log.Println("Server error: route must nested inside auth middleware")
+		resp.Json(w, 500, "server error: something went wrong")
+		return
+	}
+	authorId, _ := session["jti"].(string)
+	authorUuid, err := uuid.Parse(authorId)
+	if err != nil {
+		resp.Err(w, 400, err.Error())
+		return
+	}
+	pv, err := postApi.DB.GetPostVotes(r.Context(), database.GetPostVotesParams{
+		PostID:  postUUID,
+		VoterID: authorUuid,
+	})
+	if err != nil {
+		resp.Json(w, 200, struct {
+			Voted string `json:"voted"`
+		}{Voted: "none"})
+		return
+	}
+	resp.Json(w, 200, struct {
+		Voted string `json:"voted"`
+	}{Voted: string(pv.Voted)})
 }
 
 func (postApi *PostApi) AddPostComment(w http.ResponseWriter, r *http.Request) {
@@ -175,30 +209,35 @@ func (postApi *PostApi) AddPostComment(w http.ResponseWriter, r *http.Request) {
 	authorId, _ := session["jti"].(string)
 	authorUuid, err := uuid.Parse(authorId)
 	if err != nil {
-		resp.Err(w, 403, err.Error())
+		resp.Err(w, 400, err.Error())
 		return
 	}
-	postId := r.PathValue("id")
+	postId := r.PathValue("post_id")
 	postUUID, err := uuid.Parse(postId)
 	if err != nil {
-		resp.Err(w, 403, err.Error())
+		resp.Err(w, 400, err.Error())
 		return
 	}
-	err = postApi.DB.AddComment(r.Context(), cfg.DBConnection, params.Comment, authorUuid, postUUID, uuid.NullUUID{})
+	com, err := postApi.DB.AddComment(r.Context(), cfg.DBConnection, params.Comment, authorUuid, postUUID, uuid.NullUUID{})
 	if err != nil {
-		resp.Err(w, 403, err.Error())
+		resp.Err(w, 400, err.Error())
 		return
 	}
-	resp.Json(w, 201, struct {
-		Message string `json:"message"`
-	}{Message: "success"})
+	resp.Json(w, 201, models.Comment{
+		ID:              com.ID,
+		Comment:         com.Comment,
+		AuthorId:        com.AuthorID,
+		PostID:          com.PostID,
+		ParentCommentID: com.ParentCommentID,
+		CreatedAt:       com.CreatedAt,
+	})
 }
 
 func (postApi *PostApi) GetAllComments(w http.ResponseWriter, r *http.Request) {
-	postId := r.PathValue("id")
+	postId := r.PathValue("post_id")
 	postUUID, err := uuid.Parse(postId)
 	if err != nil {
-		resp.Err(w, 403, err.Error())
+		resp.Err(w, 400, err.Error())
 		return
 	}
 	comments, err := postApi.DB.GetPostComments(r.Context(), postUUID)
