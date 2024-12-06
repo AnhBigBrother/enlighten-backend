@@ -62,7 +62,83 @@ func (q *Queries) CreatePost(ctx context.Context, arg CreatePostParams) (Post, e
 	return i, err
 }
 
-const getAllPosts = `-- name: GetAllPosts :many
+const getHotPosts = `-- name: GetHotPosts :many
+SELECT
+  p.id, p.title, p.content, p.author_id, p.up_voted, p.down_voted, p.comments_count, p.created_at, p.updated_at,
+  u.name AS author_name,
+  u.email AS author_email,
+  u.image AS author_image,
+  p.up_voted + p.down_voted + p.comments_count AS total_interactions
+FROM
+  posts p
+  LEFT JOIN users u ON p.author_id = u.id
+ORDER BY
+  total_interactions DESC
+LIMIT
+  $1
+OFFSET
+  $2
+`
+
+type GetHotPostsParams struct {
+	Limit  int32
+	Offset int32
+}
+
+type GetHotPostsRow struct {
+	ID                uuid.UUID
+	Title             string
+	Content           string
+	AuthorID          uuid.UUID
+	UpVoted           int32
+	DownVoted         int32
+	CommentsCount     int32
+	CreatedAt         time.Time
+	UpdatedAt         time.Time
+	AuthorName        sql.NullString
+	AuthorEmail       sql.NullString
+	AuthorImage       sql.NullString
+	TotalInteractions int32
+}
+
+func (q *Queries) GetHotPosts(ctx context.Context, arg GetHotPostsParams) ([]GetHotPostsRow, error) {
+	rows, err := q.db.QueryContext(ctx, getHotPosts, arg.Limit, arg.Offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetHotPostsRow
+	for rows.Next() {
+		var i GetHotPostsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Title,
+			&i.Content,
+			&i.AuthorID,
+			&i.UpVoted,
+			&i.DownVoted,
+			&i.CommentsCount,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.AuthorName,
+			&i.AuthorEmail,
+			&i.AuthorImage,
+			&i.TotalInteractions,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getNewPosts = `-- name: GetNewPosts :many
 SELECT
   p.id, p.title, p.content, p.author_id, p.up_voted, p.down_voted, p.comments_count, p.created_at, p.updated_at,
   u.name AS author_name,
@@ -73,9 +149,18 @@ FROM
   LEFT JOIN users u ON p.author_id = u.id
 ORDER BY
   p.created_at DESC
+LIMIT
+  $1
+OFFSET
+  $2
 `
 
-type GetAllPostsRow struct {
+type GetNewPostsParams struct {
+	Limit  int32
+	Offset int32
+}
+
+type GetNewPostsRow struct {
 	ID            uuid.UUID
 	Title         string
 	Content       string
@@ -90,15 +175,15 @@ type GetAllPostsRow struct {
 	AuthorImage   sql.NullString
 }
 
-func (q *Queries) GetAllPosts(ctx context.Context) ([]GetAllPostsRow, error) {
-	rows, err := q.db.QueryContext(ctx, getAllPosts)
+func (q *Queries) GetNewPosts(ctx context.Context, arg GetNewPostsParams) ([]GetNewPostsRow, error) {
+	rows, err := q.db.QueryContext(ctx, getNewPosts, arg.Limit, arg.Offset)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []GetAllPostsRow
+	var items []GetNewPostsRow
 	for rows.Next() {
-		var i GetAllPostsRow
+		var i GetNewPostsRow
 		if err := rows.Scan(
 			&i.ID,
 			&i.Title,
@@ -223,76 +308,6 @@ func (q *Queries) GetPostById(ctx context.Context, id uuid.UUID) (GetPostByIdRow
 	return i, err
 }
 
-const getPostComments = `-- name: GetPostComments :many
-SELECT
-  pc.id, pc.comment, pc.author_id, pc.post_id, pc.parent_comment_id, pc.up_voted, pc.down_voted, pc.created_at,
-  u.email AS author_email,
-  u.name AS author_name,
-  u.image AS author_image
-FROM
-  (
-    SELECT
-      id, comment, author_id, post_id, parent_comment_id, up_voted, down_voted, created_at
-    FROM
-      COMMENTS c
-    WHERE
-      c.post_id = $1
-      AND c.parent_comment_id IS NULL
-  ) pc
-  LEFT JOIN users u ON pc.author_id = u.id
-ORDER BY
-  pc.created_at DESC
-`
-
-type GetPostCommentsRow struct {
-	ID              uuid.UUID
-	Comment         string
-	AuthorID        uuid.UUID
-	PostID          uuid.UUID
-	ParentCommentID uuid.NullUUID
-	UpVoted         int32
-	DownVoted       int32
-	CreatedAt       time.Time
-	AuthorEmail     sql.NullString
-	AuthorName      sql.NullString
-	AuthorImage     sql.NullString
-}
-
-func (q *Queries) GetPostComments(ctx context.Context, postID uuid.UUID) ([]GetPostCommentsRow, error) {
-	rows, err := q.db.QueryContext(ctx, getPostComments, postID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []GetPostCommentsRow
-	for rows.Next() {
-		var i GetPostCommentsRow
-		if err := rows.Scan(
-			&i.ID,
-			&i.Comment,
-			&i.AuthorID,
-			&i.PostID,
-			&i.ParentCommentID,
-			&i.UpVoted,
-			&i.DownVoted,
-			&i.CreatedAt,
-			&i.AuthorEmail,
-			&i.AuthorName,
-			&i.AuthorImage,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
 const getPostVotes = `-- name: GetPostVotes :one
 SELECT
   id, voted, voter_id, post_id, created_at
@@ -321,6 +336,80 @@ func (q *Queries) GetPostVotes(ctx context.Context, arg GetPostVotesParams) (Pos
 		&i.CreatedAt,
 	)
 	return i, err
+}
+
+const getTopPosts = `-- name: GetTopPosts :many
+SELECT
+  p.id, p.title, p.content, p.author_id, p.up_voted, p.down_voted, p.comments_count, p.created_at, p.updated_at,
+  u.name AS author_name,
+  u.email AS author_email,
+  u.image AS author_image
+FROM
+  posts p
+  LEFT JOIN users u ON p.author_id = u.id
+ORDER BY
+  p.up_voted DESC,
+  p.down_voted ASC
+LIMIT
+  $1
+OFFSET
+  $2
+`
+
+type GetTopPostsParams struct {
+	Limit  int32
+	Offset int32
+}
+
+type GetTopPostsRow struct {
+	ID            uuid.UUID
+	Title         string
+	Content       string
+	AuthorID      uuid.UUID
+	UpVoted       int32
+	DownVoted     int32
+	CommentsCount int32
+	CreatedAt     time.Time
+	UpdatedAt     time.Time
+	AuthorName    sql.NullString
+	AuthorEmail   sql.NullString
+	AuthorImage   sql.NullString
+}
+
+func (q *Queries) GetTopPosts(ctx context.Context, arg GetTopPostsParams) ([]GetTopPostsRow, error) {
+	rows, err := q.db.QueryContext(ctx, getTopPosts, arg.Limit, arg.Offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetTopPostsRow
+	for rows.Next() {
+		var i GetTopPostsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Title,
+			&i.Content,
+			&i.AuthorID,
+			&i.UpVoted,
+			&i.DownVoted,
+			&i.CommentsCount,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.AuthorName,
+			&i.AuthorEmail,
+			&i.AuthorImage,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const increPostCommentCount = `-- name: IncrePostCommentCount :exec

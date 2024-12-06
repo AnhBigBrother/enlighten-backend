@@ -3,6 +3,7 @@ package handler
 import (
 	"log"
 	"net/http"
+	"strconv"
 
 	"github.com/AnhBigBrother/enlighten-backend/cfg"
 	"github.com/AnhBigBrother/enlighten-backend/internal/database"
@@ -22,7 +23,17 @@ func NewCommentApi() CommentApi {
 	}
 }
 
-func (commentApi *CommentApi) GetAllCommentReplies(w http.ResponseWriter, r *http.Request) {
+func (commentApi *CommentApi) GetCommentReplies(w http.ResponseWriter, r *http.Request) {
+	queryParams := r.URL.Query()
+	limitStr, offsetStr := queryParams.Get("limit"), queryParams.Get("offset")
+	limit, err := strconv.Atoi(limitStr)
+	if err != nil {
+		limit = 10
+	}
+	offset, err := strconv.Atoi(offsetStr)
+	if err != nil {
+		offset = 0
+	}
 	postId := r.PathValue("post_id")
 	postUUID, err := uuid.Parse(postId)
 	if err != nil {
@@ -38,6 +49,8 @@ func (commentApi *CommentApi) GetAllCommentReplies(w http.ResponseWriter, r *htt
 	replies, err := commentApi.DB.GetCommentsReplies(r.Context(), database.GetCommentsRepliesParams{
 		PostID:          postUUID,
 		ParentCommentID: uuid.NullUUID{UUID: parentCommentUUID, Valid: true},
+		Limit:           int32(limit),
+		Offset:          int32(offset),
 	})
 	if err != nil {
 		resp.Err(w, 404, err.Error())

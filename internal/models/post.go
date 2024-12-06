@@ -36,7 +36,41 @@ func FormatDatabasePost(dbPost database.Post) Post {
 	}
 }
 
-func FormatDatabaseGetAllPostsRow(dbPost database.GetAllPostsRow) Post {
+func FormatDatabaseGetNewPostsRow(dbPost database.GetNewPostsRow) Post {
+	return Post{
+		ID:            dbPost.ID,
+		Title:         dbPost.Title,
+		Content:       dbPost.Content,
+		AuthorID:      dbPost.AuthorID,
+		AuthorName:    dbPost.AuthorName.String,
+		AuthorEmail:   dbPost.AuthorEmail.String,
+		AuthorImage:   dbPost.AuthorImage.String,
+		UpdatedAt:     dbPost.UpdatedAt,
+		UpVoted:       dbPost.UpVoted,
+		DownVoted:     dbPost.DownVoted,
+		CommentsCount: dbPost.CommentsCount,
+		CreatedAt:     dbPost.CreatedAt,
+	}
+}
+
+func FormatDatabaseGetHotPostsRow(dbPost database.GetHotPostsRow) Post {
+	return Post{
+		ID:            dbPost.ID,
+		Title:         dbPost.Title,
+		Content:       dbPost.Content,
+		AuthorID:      dbPost.AuthorID,
+		AuthorName:    dbPost.AuthorName.String,
+		AuthorEmail:   dbPost.AuthorEmail.String,
+		AuthorImage:   dbPost.AuthorImage.String,
+		UpdatedAt:     dbPost.UpdatedAt,
+		UpVoted:       dbPost.UpVoted,
+		DownVoted:     dbPost.DownVoted,
+		CommentsCount: dbPost.CommentsCount,
+		CreatedAt:     dbPost.CreatedAt,
+	}
+}
+
+func FormatDatabaseGetTopPostsRow(dbPost database.GetTopPostsRow) Post {
 	return Post{
 		ID:            dbPost.ID,
 		Title:         dbPost.Title,

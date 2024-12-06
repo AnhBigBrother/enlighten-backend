@@ -3,6 +3,7 @@ package handler
 import (
 	"log"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/AnhBigBrother/enlighten-backend/cfg"
@@ -24,17 +25,61 @@ func NewPostApi() PostApi {
 	}
 }
 
-func (postApi *PostApi) GetAllPost(w http.ResponseWriter, r *http.Request) {
-	posts, err := postApi.DB.GetAllPosts(r.Context())
+func (postApi *PostApi) GetAllPosts(w http.ResponseWriter, r *http.Request) {
+	queryParams := r.URL.Query()
+	sort, limitStr, offsetStr := queryParams.Get("sort"), queryParams.Get("limit"), queryParams.Get("offset")
+	limit, err := strconv.Atoi(limitStr)
+	if err != nil {
+		limit = 10
+	}
+	offset, err := strconv.Atoi(offsetStr)
+	if err != nil {
+		offset = 0
+	}
+	if sort == "new" {
+		posts, err := postApi.DB.GetNewPosts(r.Context(), database.GetNewPostsParams{
+			Limit:  int32(limit),
+			Offset: int32(offset),
+		})
+		if err != nil {
+			resp.Err(w, 404, err.Error())
+			return
+		}
+		ret := []models.Post{}
+		for _, p := range posts {
+			ret = append(ret, models.FormatDatabaseGetNewPostsRow(p))
+		}
+		resp.Json(w, 200, ret)
+		return
+	}
+	if sort == "top" {
+		posts, err := postApi.DB.GetTopPosts(r.Context(), database.GetTopPostsParams{
+			Limit:  int32(limit),
+			Offset: int32(offset),
+		})
+		if err != nil {
+			resp.Err(w, 404, err.Error())
+			return
+		}
+		ret := []models.Post{}
+		for _, p := range posts {
+			ret = append(ret, models.FormatDatabaseGetTopPostsRow(p))
+		}
+		resp.Json(w, 200, ret)
+		return
+	}
+	posts, err := postApi.DB.GetHotPosts(r.Context(), database.GetHotPostsParams{
+		Limit:  int32(limit),
+		Offset: int32(offset),
+	})
 	if err != nil {
 		resp.Err(w, 404, err.Error())
 		return
 	}
 	ret := []models.Post{}
 	for _, p := range posts {
-		ret = append(ret, models.FormatDatabaseGetAllPostsRow(p))
+		ret = append(ret, models.FormatDatabaseGetHotPostsRow(p))
 	}
-
 	resp.Json(w, 200, ret)
 }
 
@@ -233,14 +278,28 @@ func (postApi *PostApi) AddPostComment(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func (postApi *PostApi) GetAllComments(w http.ResponseWriter, r *http.Request) {
+func (postApi *PostApi) GetPostComments(w http.ResponseWriter, r *http.Request) {
+	queryParams := r.URL.Query()
+	limitStr, offsetStr := queryParams.Get("limit"), queryParams.Get("offset")
+	limit, err := strconv.Atoi(limitStr)
+	if err != nil {
+		limit = 10
+	}
+	offset, err := strconv.Atoi(offsetStr)
+	if err != nil {
+		offset = 0
+	}
 	postId := r.PathValue("post_id")
 	postUUID, err := uuid.Parse(postId)
 	if err != nil {
 		resp.Err(w, 400, err.Error())
 		return
 	}
-	comments, err := postApi.DB.GetPostComments(r.Context(), postUUID)
+	comments, err := postApi.DB.GetPostComments(r.Context(), database.GetPostCommentsParams{
+		PostID: postUUID,
+		Limit:  int32(limit),
+		Offset: int32(offset),
+	})
 	if err != nil {
 		resp.Err(w, 404, err.Error())
 		return

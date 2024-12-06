@@ -43,7 +43,7 @@ WHERE
   author_id = $1
 ;
 
--- name: GetAllPosts :many
+-- name: GetNewPosts :many
 SELECT
   p.*,
   u.name AS author_name,
@@ -54,27 +54,46 @@ FROM
   LEFT JOIN users u ON p.author_id = u.id
 ORDER BY
   p.created_at DESC
+LIMIT
+  $1
+OFFSET
+  $2
 ;
 
--- name: GetPostComments :many
+-- name: GetTopPosts :many
 SELECT
-  pc.*,
-  u.email AS author_email,
+  p.*,
   u.name AS author_name,
+  u.email AS author_email,
   u.image AS author_image
 FROM
-  (
-    SELECT
-      *
-    FROM
-      COMMENTS c
-    WHERE
-      c.post_id = $1
-      AND c.parent_comment_id IS NULL
-  ) pc
-  LEFT JOIN users u ON pc.author_id = u.id
+  posts p
+  LEFT JOIN users u ON p.author_id = u.id
 ORDER BY
-  pc.created_at DESC
+  p.up_voted DESC,
+  p.down_voted ASC
+LIMIT
+  $1
+OFFSET
+  $2
+;
+
+-- name: GetHotPosts :many
+SELECT
+  p.*,
+  u.name AS author_name,
+  u.email AS author_email,
+  u.image AS author_image,
+  p.up_voted + p.down_voted + p.comments_count AS total_interactions
+FROM
+  posts p
+  LEFT JOIN users u ON p.author_id = u.id
+ORDER BY
+  total_interactions DESC
+LIMIT
+  $1
+OFFSET
+  $2
 ;
 
 -- name: IncrePostCommentCount :exec

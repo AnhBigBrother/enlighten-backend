@@ -76,6 +76,12 @@ FROM
     WHERE
       c.post_id = $1
       AND c.parent_comment_id = $2
+    ORDER BY
+      c.created_at DESC
+    LIMIT
+      $3
+    OFFSET
+      $4
   ) pc
   LEFT JOIN users u ON pc.author_id = u.id
 `
@@ -83,6 +89,8 @@ FROM
 type GetCommentsRepliesParams struct {
 	PostID          uuid.UUID
 	ParentCommentID uuid.NullUUID
+	Limit           int32
+	Offset          int32
 }
 
 type GetCommentsRepliesRow struct {
@@ -100,7 +108,12 @@ type GetCommentsRepliesRow struct {
 }
 
 func (q *Queries) GetCommentsReplies(ctx context.Context, arg GetCommentsRepliesParams) ([]GetCommentsRepliesRow, error) {
-	rows, err := q.db.QueryContext(ctx, getCommentsReplies, arg.PostID, arg.ParentCommentID)
+	rows, err := q.db.QueryContext(ctx, getCommentsReplies,
+		arg.PostID,
+		arg.ParentCommentID,
+		arg.Limit,
+		arg.Offset,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -120,6 +133,88 @@ func (q *Queries) GetCommentsReplies(ctx context.Context, arg GetCommentsReplies
 			&i.UserEmail,
 			&i.UserName,
 			&i.UserImage,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getPostComments = `-- name: GetPostComments :many
+SELECT
+  pc.id, pc.comment, pc.author_id, pc.post_id, pc.parent_comment_id, pc.up_voted, pc.down_voted, pc.created_at,
+  u.email AS author_email,
+  u.name AS author_name,
+  u.image AS author_image
+FROM
+  (
+    SELECT
+      id, comment, author_id, post_id, parent_comment_id, up_voted, down_voted, created_at
+    FROM
+      COMMENTS c
+    WHERE
+      c.post_id = $1
+      AND c.parent_comment_id IS NULL
+    ORDER BY
+      c.created_at DESC
+    LIMIT
+      $2
+    OFFSET
+      $3
+  ) pc
+  LEFT JOIN users u ON pc.author_id = u.id
+ORDER BY
+  pc.created_at DESC
+`
+
+type GetPostCommentsParams struct {
+	PostID uuid.UUID
+	Limit  int32
+	Offset int32
+}
+
+type GetPostCommentsRow struct {
+	ID              uuid.UUID
+	Comment         string
+	AuthorID        uuid.UUID
+	PostID          uuid.UUID
+	ParentCommentID uuid.NullUUID
+	UpVoted         int32
+	DownVoted       int32
+	CreatedAt       time.Time
+	AuthorEmail     sql.NullString
+	AuthorName      sql.NullString
+	AuthorImage     sql.NullString
+}
+
+func (q *Queries) GetPostComments(ctx context.Context, arg GetPostCommentsParams) ([]GetPostCommentsRow, error) {
+	rows, err := q.db.QueryContext(ctx, getPostComments, arg.PostID, arg.Limit, arg.Offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetPostCommentsRow
+	for rows.Next() {
+		var i GetPostCommentsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Comment,
+			&i.AuthorID,
+			&i.PostID,
+			&i.ParentCommentID,
+			&i.UpVoted,
+			&i.DownVoted,
+			&i.CreatedAt,
+			&i.AuthorEmail,
+			&i.AuthorName,
+			&i.AuthorImage,
 		); err != nil {
 			return nil, err
 		}
