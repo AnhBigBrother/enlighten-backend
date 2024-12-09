@@ -219,8 +219,6 @@ func (userApi *UserApi) GetMe(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	currUser.Password = ""
-
 	resp.Json(w, 200, models.FormatDatabaseUser(currUser))
 }
 
