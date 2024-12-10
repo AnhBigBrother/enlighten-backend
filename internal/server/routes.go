@@ -24,10 +24,10 @@ func RegisterRoutes() http.Handler {
 
 	oauthApi := handler.NewOauthApi()
 	oauthRouter := http.NewServeMux()
-	oauthRouter.HandleFunc("POST /google", oauthApi.OauthGoogle)
-	oauthRouter.HandleFunc("POST /github", oauthApi.OauthGithub)
-	oauthRouter.HandleFunc("POST /microsoft", oauthApi.OauthMicrosoft)
-	oauthRouter.HandleFunc("POST /discord", oauthApi.OauthDiscord)
+	oauthRouter.HandleFunc("GET /callback/google", oauthApi.HandleGoogleOauth)
+	oauthRouter.HandleFunc("GET /callback/github", oauthApi.HandleGithubOauth)
+	oauthRouter.HandleFunc("GET /callback/microsoft", oauthApi.HandleMicrosoftOauth)
+	oauthRouter.HandleFunc("GET /callback/discord", oauthApi.HandleDiscordOauth)
 
 	postApi := handler.NewPostApi()
 	commentApi := handler.NewCommentApi()
@@ -46,9 +46,9 @@ func RegisterRoutes() http.Handler {
 	postRouter.HandleFunc("POST /{post_id}/comment/{comment_id}/downvote", middleware.Auth(commentApi.DownVoteComment))
 	postRouter.HandleFunc("POST /{post_id}/comment/{comment_id}/reply", middleware.Auth(commentApi.ReplyComment))
 
-	router.Handle("/user/", http.StripPrefix("/user", userRouter))
-	router.Handle("/oauth/", http.StripPrefix("/oauth", oauthRouter))
-	router.Handle("/post/", http.StripPrefix("/post", postRouter))
+	router.Handle("/api/v1/user/", http.StripPrefix("/api/v1/user", userRouter))
+	router.Handle("/api/v1/oauth/", http.StripPrefix("/api/v1/oauth", oauthRouter))
+	router.Handle("/api/v1/post/", http.StripPrefix("/api/v1/post", postRouter))
 
 	return cors.New(cors.Options{
 		AllowedOrigins:   []string{"https://*", "http://*"},
