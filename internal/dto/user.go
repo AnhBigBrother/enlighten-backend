@@ -44,7 +44,7 @@ func (user *UserSignUp) ValidateInput() error {
 }
 
 func (user *UserLogIn) ValidateInput() error {
-	emailRegex := regexp.MustCompile(`^[a-z0-9._%+\-]+@[a-z0-9.\-]+\.[a-z]{2,4}$`)
+	emailRegex := regexp.MustCompile(`^[a-zA-Z0-9._%+\-]+@[a-z0-9.\-]+\.[a-z]{2,4}$`)
 	errArr := []string{}
 	if !emailRegex.MatchString(user.Email) {
 		errArr = append(errArr, "invalid email")
@@ -66,6 +66,9 @@ func (user *UserUpdate) ValidateInput() error {
 	}
 	if len(user.Password) > 0 && len(user.Password) < 6 {
 		errArr = append(errArr, "password too short")
+	}
+	if len(user.Password) == 0 && len(user.Name) == 0 && len(user.Image) == 0 {
+		errArr = append(errArr, "nothing has changed")
 	}
 	if len(errArr) > 0 {
 		errMsg := strings.Join(errArr, ", ")
