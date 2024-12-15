@@ -249,8 +249,17 @@ func (userApi *UserApi) UpdateMe(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	sessionEmail := session["email"].(string)
+	user, err := userApi.DB.FindUserByEmail(r.Context(), sessionEmail)
+	if err != nil {
+		resp.Err(w, 400, err.Error())
+		return
+	}
 	updateUserInfoParams := database.UpdateUserInfoParams{
-		Email: sessionEmail,
+		Email:     sessionEmail,
+		Name:      user.Name,
+		Image:     user.Image,
+		Password:  user.Password,
+		UpdatedAt: time.Now(),
 	}
 	if len(params.Password) > 0 {
 		updateUserInfoParams.Password = params.Password
@@ -259,16 +268,36 @@ func (userApi *UserApi) UpdateMe(w http.ResponseWriter, r *http.Request) {
 		updateUserInfoParams.Name = params.Name
 	}
 	if len(params.Image) > 0 {
-		updateUserInfoParams.Name = params.Name
+		updateUserInfoParams.Image = sql.NullString{String: params.Image, Valid: true}
 	}
-	user, err := userApi.DB.UpdateUserInfo(r.Context(), updateUserInfoParams)
+	_, err = userApi.DB.UpdateUserInfo(r.Context(), updateUserInfoParams)
 	if err != nil {
 		resp.Err(w, 400, err.Error())
 		return
 	}
-	user.Password = ""
 
-	resp.Json(w, 200, models.FormatDatabaseUser(user))
+	access_token, err := token.Sign(token.Claims{
+		Email: sessionEmail,
+		Name:  params.Name,
+		Image: params.Image,
+		RegisteredClaims: jwt.RegisteredClaims{
+			IssuedAt:  jwt.NewNumericDate(time.Unix(int64(session["iat"].(float64)), 0)),
+			ExpiresAt: jwt.NewNumericDate(time.Unix(int64(session["exp"].(float64)), 0)),
+			ID:        user.ID.String(),
+			Subject:   "access_token",
+		},
+	})
+	if err != nil {
+		resp.Err(w, 400, err.Error())
+		return
+	}
+
+	resp.SetCookie(w, "access_token", access_token)
+
+	resp.Json(w, 200, struct {
+		AccessToken  string `json:"access_token"`
+		RefreshToken string `json:"refresh_token"`
+	}{AccessToken: access_token, RefreshToken: user.RefreshToken.String})
 }
 
 func (userApi *UserApi) DeleteMe(w http.ResponseWriter, r *http.Request) {

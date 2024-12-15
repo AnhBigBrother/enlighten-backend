@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"bytes"
 	"context"
 	"database/sql"
 	"errors"
@@ -27,11 +26,6 @@ type oauthUserInfo struct {
 	Picture string `json:"picture"`
 }
 
-type oauthToken struct {
-	TokenType   string `json:"token_type"`
-	AccessToken string `json:"access_token"`
-}
-
 func NewOauthApi() OauthApi {
 	return OauthApi{
 		DB: cfg.DBQueries,
@@ -39,12 +33,8 @@ func NewOauthApi() OauthApi {
 }
 
 func (oauthApi *OauthApi) HandleGoogleOauth(w http.ResponseWriter, r *http.Request) {
-	code := r.URL.Query().Get("code")
-	tokenType, accessToken, err := getGoogleAccessToken(code)
-	if err != nil {
-		resp.Err(w, 404, err.Error())
-		return
-	}
+	queries := r.URL.Query()
+	tokenType, accessToken, redirectTo := queries.Get("token_type"), queries.Get("access_token"), queries.Get("redirect_to")
 	userData, err := getGoogleUserInfo(tokenType, accessToken)
 	if err != nil {
 		resp.Err(w, 404, err.Error())
@@ -53,7 +43,7 @@ func (oauthApi *OauthApi) HandleGoogleOauth(w http.ResponseWriter, r *http.Reque
 	access_token, refresh_token, err := oauthApi.signInOauthUser(userData)
 	if err != nil {
 		if err.Error() == "unregistered user" {
-			http.Redirect(w, r, fmt.Sprintf("%s/signup?email=%s&name=%s&image=%s", cfg.Frontend, userData.Email, userData.Name, userData.Picture), http.StatusSeeOther)
+			http.Redirect(w, r, fmt.Sprintf("%s/signup?email=%s&name=%s&image=%s", cfg.FrontendUrl, userData.Email, userData.Name, userData.Picture), http.StatusTemporaryRedirect)
 			return
 		}
 	}
@@ -61,16 +51,23 @@ func (oauthApi *OauthApi) HandleGoogleOauth(w http.ResponseWriter, r *http.Reque
 	resp.SetCookie(w, "access_token", access_token)
 	resp.SetCookie(w, "refresh_token", refresh_token)
 
-	http.Redirect(w, r, cfg.Frontend, http.StatusSeeOther)
+	if redirectTo != "" {
+		http.Redirect(w, r, fmt.Sprintf("%s?access_token=%s&refresh_token=%s", redirectTo, access_token, refresh_token), http.StatusTemporaryRedirect)
+		return
+	}
+
+	resp.Json(w, 200, struct {
+		AccessToken  string `json:"access_token"`
+		RefreshToken string `json:"refresh_token"`
+	}{
+		AccessToken:  access_token,
+		RefreshToken: refresh_token,
+	})
 }
 
 func (oauthApi *OauthApi) HandleGithubOauth(w http.ResponseWriter, r *http.Request) {
-	code := r.URL.Query().Get("code")
-	tokenType, accessToken, err := getGithubAccessToken(code)
-	if err != nil {
-		resp.Err(w, 404, err.Error())
-		return
-	}
+	queries := r.URL.Query()
+	tokenType, accessToken, redirectTo := queries.Get("token_type"), queries.Get("access_token"), queries.Get("redirect_to")
 	userData, err := getGithubUserInfo(tokenType, accessToken)
 	if err != nil {
 		resp.Err(w, 404, err.Error())
@@ -79,7 +76,7 @@ func (oauthApi *OauthApi) HandleGithubOauth(w http.ResponseWriter, r *http.Reque
 	access_token, refresh_token, err := oauthApi.signInOauthUser(userData)
 	if err != nil {
 		if err.Error() == "unregistered user" {
-			http.Redirect(w, r, fmt.Sprintf("%s/signup?email=%s&name=%s&image=%s", cfg.Frontend, userData.Email, userData.Name, userData.Picture), http.StatusSeeOther)
+			http.Redirect(w, r, fmt.Sprintf("%s/signup?email=%s&name=%s&image=%s", cfg.FrontendUrl, userData.Email, userData.Name, userData.Picture), http.StatusTemporaryRedirect)
 			return
 		}
 	}
@@ -87,16 +84,23 @@ func (oauthApi *OauthApi) HandleGithubOauth(w http.ResponseWriter, r *http.Reque
 	resp.SetCookie(w, "access_token", access_token)
 	resp.SetCookie(w, "refresh_token", refresh_token)
 
-	http.Redirect(w, r, cfg.Frontend, http.StatusSeeOther)
+	if redirectTo != "" {
+		http.Redirect(w, r, fmt.Sprintf("%s?access_token=%s&refresh_token=%s", redirectTo, access_token, refresh_token), http.StatusTemporaryRedirect)
+		return
+	}
+
+	resp.Json(w, 200, struct {
+		AccessToken  string `json:"access_token"`
+		RefreshToken string `json:"refresh_token"`
+	}{
+		AccessToken:  access_token,
+		RefreshToken: refresh_token,
+	})
 }
 
 func (oauthApi *OauthApi) HandleMicrosoftOauth(w http.ResponseWriter, r *http.Request) {
-	code := r.URL.Query().Get("code")
-	tokenType, accessToken, err := getMicrosoftAccessToken(code)
-	if err != nil {
-		resp.Err(w, 404, err.Error())
-		return
-	}
+	queries := r.URL.Query()
+	tokenType, accessToken, redirectTo := queries.Get("token_type"), queries.Get("access_token"), queries.Get("redirect_to")
 	userData, err := getMicrosoftUserInfo(tokenType, accessToken)
 	if err != nil {
 		resp.Err(w, 404, err.Error())
@@ -105,7 +109,7 @@ func (oauthApi *OauthApi) HandleMicrosoftOauth(w http.ResponseWriter, r *http.Re
 	access_token, refresh_token, err := oauthApi.signInOauthUser(userData)
 	if err != nil {
 		if err.Error() == "unregistered user" {
-			http.Redirect(w, r, fmt.Sprintf("%s/signup?email=%s&name=%s&image=%s", cfg.Frontend, userData.Email, userData.Name, userData.Picture), http.StatusSeeOther)
+			http.Redirect(w, r, fmt.Sprintf("%s/signup?email=%s&name=%s&image=%s", cfg.FrontendUrl, userData.Email, userData.Name, userData.Picture), http.StatusTemporaryRedirect)
 			return
 		}
 	}
@@ -113,16 +117,23 @@ func (oauthApi *OauthApi) HandleMicrosoftOauth(w http.ResponseWriter, r *http.Re
 	resp.SetCookie(w, "access_token", access_token)
 	resp.SetCookie(w, "refresh_token", refresh_token)
 
-	http.Redirect(w, r, cfg.Frontend, http.StatusSeeOther)
+	if redirectTo != "" {
+		http.Redirect(w, r, fmt.Sprintf("%s?access_token=%s&refresh_token=%s", redirectTo, access_token, refresh_token), http.StatusTemporaryRedirect)
+		return
+	}
+
+	resp.Json(w, 200, struct {
+		AccessToken  string `json:"access_token"`
+		RefreshToken string `json:"refresh_token"`
+	}{
+		AccessToken:  access_token,
+		RefreshToken: refresh_token,
+	})
 }
 
 func (oauthApi *OauthApi) HandleDiscordOauth(w http.ResponseWriter, r *http.Request) {
-	code := r.URL.Query().Get("code")
-	tokenType, accessToken, err := getDiscordAccessToken(code)
-	if err != nil {
-		resp.Err(w, 404, err.Error())
-		return
-	}
+	queries := r.URL.Query()
+	tokenType, accessToken, redirectTo := queries.Get("token_type"), queries.Get("access_token"), queries.Get("redirect_to")
 	userData, err := getDiscordUserInfo(tokenType, accessToken)
 	if err != nil {
 		resp.Err(w, 404, err.Error())
@@ -131,7 +142,7 @@ func (oauthApi *OauthApi) HandleDiscordOauth(w http.ResponseWriter, r *http.Requ
 	access_token, refresh_token, err := oauthApi.signInOauthUser(userData)
 	if err != nil {
 		if err.Error() == "unregistered user" {
-			http.Redirect(w, r, fmt.Sprintf("%s/signup?email=%s&name=%s&image=%s", cfg.Frontend, userData.Email, userData.Name, userData.Picture), http.StatusSeeOther)
+			http.Redirect(w, r, fmt.Sprintf("%s/signup?email=%s&name=%s&image=%s", cfg.FrontendUrl, userData.Email, userData.Name, userData.Picture), http.StatusTemporaryRedirect)
 			return
 		}
 	}
@@ -139,101 +150,18 @@ func (oauthApi *OauthApi) HandleDiscordOauth(w http.ResponseWriter, r *http.Requ
 	resp.SetCookie(w, "access_token", access_token)
 	resp.SetCookie(w, "refresh_token", refresh_token)
 
-	http.Redirect(w, r, cfg.Frontend, http.StatusSeeOther)
-}
+	if redirectTo != "" {
+		http.Redirect(w, r, fmt.Sprintf("%s?access_token=%s&refresh_token=%s", redirectTo, access_token, refresh_token), http.StatusTemporaryRedirect)
+		return
+	}
 
-func getGoogleAccessToken(code string) (string, string, error) {
-	client := &http.Client{}
-	reqBody := fmt.Sprintf("code=%s&client_id=%s&client_secret=%s&redirect_uri=%s&grant_type=%s", code, cfg.GoogleClientId, cfg.GoogleClientSecret, cfg.GoogleCallbackUrl, "authorization_code")
-	req, _ := http.NewRequest("POST", cfg.GoogleGetTokenUrl, bytes.NewBufferString(reqBody))
-	req.Header.Add("content-type", "application/x-www-form-urlencoded")
-	req.Header.Add("Accept", "application/json")
-	q := req.URL.Query()
-	q.Add("code", code)
-	q.Add("client_id", cfg.GoogleClientId)
-	q.Add("client_secret", cfg.GoogleClientSecret)
-	q.Add("redirect_uri", cfg.GoogleCallbackUrl)
-	q.Add("grant_type", "authorization_code")
-	res, err := client.Do(req)
-	if err != nil {
-		return "", "", err
-	}
-	token := oauthToken{}
-	err = parser.ParseBody(res.Body, &token)
-	if err != nil {
-		return "", "", err
-	}
-	return token.TokenType, token.AccessToken, nil
-}
-
-func getGithubAccessToken(code string) (string, string, error) {
-	client := &http.Client{}
-	reqBody := fmt.Sprintf("code=%s&client_id=%s&client_secret=%s&redirect_uri=%s&grant_type=%s", code, cfg.GithubClientId, cfg.GithubClientSecret, cfg.GithubCallbackUrl, "authorization_code")
-	req, _ := http.NewRequest("POST", cfg.GithubGetTokenUrl, bytes.NewBufferString(reqBody))
-	req.Header.Add("content-type", "application/x-www-form-urlencoded")
-	req.Header.Add("Accept", "application/json")
-	q := req.URL.Query()
-	q.Add("code", code)
-	q.Add("client_id", cfg.GithubClientId)
-	q.Add("client_secret", cfg.GithubClientSecret)
-	q.Add("redirect_uri", cfg.GithubCallbackUrl)
-	res, err := client.Do(req)
-	if err != nil {
-		return "", "", err
-	}
-	token := oauthToken{}
-	err = parser.ParseBody(res.Body, &token)
-	if err != nil {
-		return "", "", err
-	}
-	return token.TokenType, token.AccessToken, nil
-}
-
-func getMicrosoftAccessToken(code string) (string, string, error) {
-	client := &http.Client{}
-	reqBody := fmt.Sprintf("code=%s&client_id=%s&client_secret=%s&redirect_uri=%s&grant_type=%s", code, cfg.MicrosoftClientId, cfg.MicrosoftClientSecret, cfg.MicrosoftCallbackUrl, "authorization_code")
-	req, _ := http.NewRequest("POST", cfg.MicrosoftGetTokenUrl, bytes.NewBufferString(reqBody))
-	req.Header.Add("content-type", "application/x-www-form-urlencoded")
-	q := req.URL.Query()
-	q.Add("code", code)
-	q.Add("client_id", cfg.MicrosoftClientId)
-	q.Add("client_secret", cfg.MicrosoftClientSecret)
-	q.Add("redirect_uri", cfg.MicrosoftCallbackUrl)
-	q.Add("grant_type", "authorization_code")
-	res, err := client.Do(req)
-	if err != nil {
-		return "", "", err
-	}
-	token := oauthToken{}
-	err = parser.ParseBody(res.Body, &token)
-	if err != nil {
-		return "", "", err
-	}
-	return token.TokenType, token.AccessToken, nil
-}
-
-func getDiscordAccessToken(code string) (string, string, error) {
-	client := &http.Client{}
-	reqBody := fmt.Sprintf("code=%s&client_id=%s&client_secret=%s&redirect_uri=%s&grant_type=%s", code, cfg.DiscordClientId, cfg.DiscordClientSecret, cfg.DiscordCallbackUrl, "authorization_code")
-	req, _ := http.NewRequest("POST", cfg.DiscordGetTokenUrl, bytes.NewBufferString(reqBody))
-	req.Header.Add("content-type", "application/x-www-form-urlencoded")
-	req.Header.Add("Accept", "application/json")
-	q := req.URL.Query()
-	q.Add("code", code)
-	q.Add("client_id", cfg.DiscordClientId)
-	q.Add("client_secret", cfg.DiscordClientSecret)
-	q.Add("redirect_uri", cfg.DiscordCallbackUrl)
-	q.Add("grant_type", "authorization_code")
-	res, err := client.Do(req)
-	if err != nil {
-		return "", "", err
-	}
-	token := oauthToken{}
-	err = parser.ParseBody(res.Body, &token)
-	if err != nil {
-		return "", "", err
-	}
-	return token.TokenType, token.AccessToken, nil
+	resp.Json(w, 200, struct {
+		AccessToken  string `json:"access_token"`
+		RefreshToken string `json:"refresh_token"`
+	}{
+		AccessToken:  access_token,
+		RefreshToken: refresh_token,
+	})
 }
 
 func getGoogleUserInfo(tokenType, accessToken string) (oauthUserInfo, error) {
@@ -389,3 +317,104 @@ func (oauthApi *OauthApi) signInOauthUser(user oauthUserInfo) (string, string, e
 
 	return access_token, refresh_token, nil
 }
+
+// type oauthToken struct {
+// 	TokenType   string `json:"token_type"`
+// 	AccessToken string `json:"access_token"`
+// }
+
+// use 4 functions below to get oauth access_token (if oauth providers have set redirect to backend)
+
+// func getGoogleAccessToken(code string) (string, string, error) {
+// 	client := &http.Client{}
+// 	reqBody := fmt.Sprintf("code=%s&client_id=%s&client_secret=%s&redirect_uri=%s&grant_type=%s", code, cfg.GoogleClientId, cfg.GoogleClientSecret, cfg.GoogleCallbackUrl, "authorization_code")
+// 	req, _ := http.NewRequest("POST", cfg.GoogleGetTokenUrl, bytes.NewBufferString(reqBody))
+// 	req.Header.Add("content-type", "application/x-www-form-urlencoded")
+// 	req.Header.Add("Accept", "application/json")
+// 	q := req.URL.Query()
+// 	q.Add("code", code)
+// 	q.Add("client_id", cfg.GoogleClientId)
+// 	q.Add("client_secret", cfg.GoogleClientSecret)
+// 	q.Add("redirect_uri", cfg.GoogleCallbackUrl)
+// 	q.Add("grant_type", "authorization_code")
+// 	res, err := client.Do(req)
+// 	if err != nil {
+// 		return "", "", err
+// 	}
+// 	token := oauthToken{}
+// 	err = parser.ParseBody(res.Body, &token)
+// 	if err != nil {
+// 		return "", "", err
+// 	}
+// 	return token.TokenType, token.AccessToken, nil
+// }
+
+// func getGithubAccessToken(code string) (string, string, error) {
+// 	client := &http.Client{}
+// 	reqBody := fmt.Sprintf("code=%s&client_id=%s&client_secret=%s&redirect_uri=%s&grant_type=%s", code, cfg.GithubClientId, cfg.GithubClientSecret, cfg.GithubCallbackUrl, "authorization_code")
+// 	req, _ := http.NewRequest("POST", cfg.GithubGetTokenUrl, bytes.NewBufferString(reqBody))
+// 	req.Header.Add("content-type", "application/x-www-form-urlencoded")
+// 	req.Header.Add("Accept", "application/json")
+// 	q := req.URL.Query()
+// 	q.Add("code", code)
+// 	q.Add("client_id", cfg.GithubClientId)
+// 	q.Add("client_secret", cfg.GithubClientSecret)
+// 	q.Add("redirect_uri", cfg.GithubCallbackUrl)
+// 	res, err := client.Do(req)
+// 	if err != nil {
+// 		return "", "", err
+// 	}
+// 	token := oauthToken{}
+// 	err = parser.ParseBody(res.Body, &token)
+// 	if err != nil {
+// 		return "", "", err
+// 	}
+// 	return token.TokenType, token.AccessToken, nil
+// }
+
+// func getMicrosoftAccessToken(code string) (string, string, error) {
+// 	client := &http.Client{}
+// 	reqBody := fmt.Sprintf("code=%s&client_id=%s&client_secret=%s&redirect_uri=%s&grant_type=%s", code, cfg.MicrosoftClientId, cfg.MicrosoftClientSecret, cfg.MicrosoftCallbackUrl, "authorization_code")
+// 	req, _ := http.NewRequest("POST", cfg.MicrosoftGetTokenUrl, bytes.NewBufferString(reqBody))
+// 	req.Header.Add("content-type", "application/x-www-form-urlencoded")
+// 	q := req.URL.Query()
+// 	q.Add("code", code)
+// 	q.Add("client_id", cfg.MicrosoftClientId)
+// 	q.Add("client_secret", cfg.MicrosoftClientSecret)
+// 	q.Add("redirect_uri", cfg.MicrosoftCallbackUrl)
+// 	q.Add("grant_type", "authorization_code")
+// 	res, err := client.Do(req)
+// 	if err != nil {
+// 		return "", "", err
+// 	}
+// 	token := oauthToken{}
+// 	err = parser.ParseBody(res.Body, &token)
+// 	if err != nil {
+// 		return "", "", err
+// 	}
+// 	return token.TokenType, token.AccessToken, nil
+// }
+
+// func getDiscordAccessToken(code string) (string, string, error) {
+// 	client := &http.Client{}
+// 	reqBody := fmt.Sprintf("code=%s&client_id=%s&client_secret=%s&redirect_uri=%s&grant_type=%s", code, cfg.DiscordClientId, cfg.DiscordClientSecret, cfg.DiscordCallbackUrl, "authorization_code")
+// 	req, _ := http.NewRequest("POST", cfg.DiscordGetTokenUrl, bytes.NewBufferString(reqBody))
+// 	req.Header.Add("content-type", "application/x-www-form-urlencoded")
+// 	req.Header.Add("Accept", "application/json")
+// 	q := req.URL.Query()
+// 	q.Add("code", code)
+// 	q.Add("client_id", cfg.DiscordClientId)
+// 	q.Add("client_secret", cfg.DiscordClientSecret)
+// 	q.Add("redirect_uri", cfg.DiscordCallbackUrl)
+// 	q.Add("grant_type", "authorization_code")
+// 	res, err := client.Do(req)
+// 	if err != nil {
+// 		return "", "", err
+// 	}
+// 	token := oauthToken{}
+// 	err = parser.ParseBody(res.Body, &token)
+// 	if err != nil {
+// 		return "", "", err
+// 	}
+// 	return token.TokenType, token.AccessToken, nil
+// }

@@ -15,8 +15,8 @@ var (
 	DBConnection    *sql.DB
 	DBQueries       *database.Queries
 	DbUri           string
-	Frontend        string
-	Backend         string
+	FrontendUrl     string
+	BackendUrl      string
 	JwtSecret       string
 	Port            string
 	AccessTokenAge  int
@@ -50,6 +50,7 @@ var (
 
 func init() {
 	err := godotenv.Load(".env.production")
+	// err := godotenv.Load(".env")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -57,11 +58,11 @@ func init() {
 	dbUri := os.Getenv("DB_URI")
 	jwtSecret := os.Getenv("JWT_SECRET")
 	port := os.Getenv("PORT")
-	frontend := os.Getenv("FRONTEND")
-	backend := os.Getenv("BACKEND")
+	frontendUrl := os.Getenv("FRONTEND_URL")
+	backendUrl := os.Getenv("BACKEND_URL")
 
-	if dbUri == "" || jwtSecret == "" || port == "" || frontend == "" || backend == "" {
-		log.Fatal("some of variables is not found in the environment: DB_URI, JWT_SECRET, PORT, DOMAIN")
+	if dbUri == "" || jwtSecret == "" || port == "" || frontendUrl == "" || backendUrl == "" {
+		log.Fatal("some of variables is not found in the environment: DB_URI, JWT_SECRET, PORT, FRONTEND_URL, BACKEND_URL")
 	}
 
 	githubClientId := os.Getenv("GITHUB_CLIENT_ID")
@@ -106,8 +107,8 @@ func init() {
 	DBConnection = conn
 	DBQueries = database.New(conn)
 	DbUri = dbUri
-	Frontend = frontend
-	Backend = backend
+	FrontendUrl = frontendUrl
+	BackendUrl = backendUrl
 	JwtSecret = jwtSecret
 	Port = port
 	AccessTokenAge = 30 * 60           // in second

@@ -1,5 +1,7 @@
+FROM golang:latest AS base
+
 # BUILDER -------------------------------
-FROM golang:latest AS builder
+FROM base AS builder
 WORKDIR /app
 
 COPY go.mod go.sum ./
@@ -9,7 +11,7 @@ RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o bin/api ./cmd/api
 
 
 # RUNNER --------------------------------
-FROM scratch AS runner
+FROM base AS runner
 WORKDIR /app
 
 COPY --from=builder /app/bin/api ./

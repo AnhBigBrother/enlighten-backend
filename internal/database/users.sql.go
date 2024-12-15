@@ -110,7 +110,8 @@ UPDATE users
 SET
   "name" = $2,
   "password" = $3,
-  "image" = $4
+  "image" = $4,
+  "updated_at" = $5
 WHERE
   email = $1
 RETURNING
@@ -118,10 +119,11 @@ RETURNING
 `
 
 type UpdateUserInfoParams struct {
-	Email    string
-	Name     string
-	Password string
-	Image    sql.NullString
+	Email     string
+	Name      string
+	Password  string
+	Image     sql.NullString
+	UpdatedAt time.Time
 }
 
 func (q *Queries) UpdateUserInfo(ctx context.Context, arg UpdateUserInfoParams) (User, error) {
@@ -130,6 +132,7 @@ func (q *Queries) UpdateUserInfo(ctx context.Context, arg UpdateUserInfoParams) 
 		arg.Name,
 		arg.Password,
 		arg.Image,
+		arg.UpdatedAt,
 	)
 	var i User
 	err := row.Scan(

@@ -42,7 +42,8 @@ UPDATE users
 SET
   "name" = $2,
   "password" = $3,
-  "image" = $4
+  "image" = $4,
+  "updated_at" = $5
 WHERE
   email = $1
 RETURNING
