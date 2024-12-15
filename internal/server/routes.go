@@ -15,7 +15,7 @@ func RegisterRoutes() http.Handler {
 	userRouter := http.NewServeMux()
 	userRouter.HandleFunc("POST /signup", userApi.SignUp)
 	userRouter.HandleFunc("POST /signin", userApi.SignIn)
-	userRouter.HandleFunc("POST /signout", middleware.Auth(userApi.SignOut))
+	userRouter.HandleFunc("/signout", middleware.Auth(userApi.SignOut))
 	userRouter.HandleFunc("GET /me", middleware.Auth(userApi.GetMe))
 	userRouter.HandleFunc("POST /me", middleware.Auth(userApi.UpdateMe))
 	userRouter.HandleFunc("DELETE /me", middleware.Auth(userApi.DeleteMe))
@@ -24,10 +24,10 @@ func RegisterRoutes() http.Handler {
 
 	oauthApi := handler.NewOauthApi()
 	oauthRouter := http.NewServeMux()
-	oauthRouter.HandleFunc("GET /callback/google", oauthApi.HandleGoogleOauth)
-	oauthRouter.HandleFunc("GET /callback/github", oauthApi.HandleGithubOauth)
-	oauthRouter.HandleFunc("GET /callback/microsoft", oauthApi.HandleMicrosoftOauth)
-	oauthRouter.HandleFunc("GET /callback/discord", oauthApi.HandleDiscordOauth)
+	oauthRouter.HandleFunc("GET /google", oauthApi.HandleGoogleOauth)
+	oauthRouter.HandleFunc("GET /github", oauthApi.HandleGithubOauth)
+	oauthRouter.HandleFunc("GET /microsoft", oauthApi.HandleMicrosoftOauth)
+	oauthRouter.HandleFunc("GET /discord", oauthApi.HandleDiscordOauth)
 
 	postApi := handler.NewPostApi()
 	commentApi := handler.NewCommentApi()
