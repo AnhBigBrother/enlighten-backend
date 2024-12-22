@@ -3,6 +3,7 @@ package server
 import (
 	"net/http"
 
+	"github.com/AnhBigBrother/enlighten-backend/cfg"
 	"github.com/AnhBigBrother/enlighten-backend/internal/handler"
 	"github.com/AnhBigBrother/enlighten-backend/internal/middleware"
 	"github.com/rs/cors"
@@ -46,12 +47,19 @@ func RegisterRoutes() http.Handler {
 	postRouter.HandleFunc("POST /{post_id}/comment/{comment_id}/downvote", middleware.Auth(commentApi.DownVoteComment))
 	postRouter.HandleFunc("POST /{post_id}/comment/{comment_id}/reply", middleware.Auth(commentApi.ReplyComment))
 
+	sudokuApi := handler.Sudoku{}
+	gameRouter := http.NewServeMux()
+	gameRouter.HandleFunc("GET /sudoku", sudokuApi.GenerateSudoku)
+	gameRouter.HandleFunc("POST /sudoku", sudokuApi.SolveSudoku)
+	gameRouter.HandleFunc("POST /sudoku/check", sudokuApi.CheckSolvable)
+
 	router.Handle("/api/v1/user/", http.StripPrefix("/api/v1/user", userRouter))
 	router.Handle("/api/v1/oauth/", http.StripPrefix("/api/v1/oauth", oauthRouter))
 	router.Handle("/api/v1/post/", http.StripPrefix("/api/v1/post", postRouter))
+	router.Handle("/api/v1/game/", http.StripPrefix("/api/v1/game", gameRouter))
 
 	return cors.New(cors.Options{
-		AllowedOrigins:   []string{"https://*", "http://*"},
+		AllowedOrigins:   []string{cfg.FrontendUrl},
 		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"},
 		AllowedHeaders:   []string{"*"},
 		AllowCredentials: true,
