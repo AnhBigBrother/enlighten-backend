@@ -103,4 +103,5 @@ type User struct {
 	RefreshToken sql.NullString
 	CreatedAt    time.Time
 	UpdatedAt    time.Time
+	Bio          sql.NullString
 }

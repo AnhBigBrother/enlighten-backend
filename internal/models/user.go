@@ -13,6 +13,7 @@ type User struct {
 	Name         string    `json:"name"`
 	Password     string    `json:"password"`
 	Image        string    `json:"image"`
+	Bio          string    `json:"bio"`
 	RefreshToken string    `json:"refresh_token"`
 	CreatedAt    time.Time `json:"created_at"`
 	UpdatedAt    time.Time `json:"updated_at"`
@@ -25,6 +26,7 @@ func FormatDatabaseUser(dbUser database.User) User {
 		Name:         dbUser.Name,
 		Password:     dbUser.Password,
 		Image:        dbUser.Image.String,
+		Bio:          dbUser.Bio.String,
 		RefreshToken: dbUser.RefreshToken.String,
 		CreatedAt:    dbUser.CreatedAt,
 		UpdatedAt:    dbUser.UpdatedAt,

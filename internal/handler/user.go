@@ -261,6 +261,7 @@ func (userApi *UserApi) UpdateMe(w http.ResponseWriter, r *http.Request) {
 		Password:  user.Password,
 		UpdatedAt: time.Now(),
 	}
+	updateUserInfoParams.UpdatedAt = time.Now()
 	if len(params.Password) > 0 {
 		updateUserInfoParams.Password = params.Password
 	}
@@ -269,6 +270,9 @@ func (userApi *UserApi) UpdateMe(w http.ResponseWriter, r *http.Request) {
 	}
 	if len(params.Image) > 0 {
 		updateUserInfoParams.Image = sql.NullString{String: params.Image, Valid: true}
+	}
+	if len(params.Bio) > 0 {
+		updateUserInfoParams.Bio = sql.NullString{String: params.Bio, Valid: true}
 	}
 	_, err = userApi.DB.UpdateUserInfo(r.Context(), updateUserInfoParams)
 	if err != nil {

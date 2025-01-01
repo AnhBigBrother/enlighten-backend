@@ -28,7 +28,7 @@ INSERT INTO
 VALUES
   ($1, $2, $3, $4, $5, $6, $7, $8)
 RETURNING
-  id, email, name, password, image, refresh_token, created_at, updated_at
+  id, email, name, password, image, refresh_token, created_at, updated_at, bio
 `
 
 type CreateUserParams struct {
@@ -63,6 +63,7 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 		&i.RefreshToken,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.Bio,
 	)
 	return i, err
 }
@@ -80,7 +81,7 @@ func (q *Queries) DeleteUserInfo(ctx context.Context, email string) error {
 
 const findUserByEmail = `-- name: FindUserByEmail :one
 SELECT
-  id, email, name, password, image, refresh_token, created_at, updated_at
+  id, email, name, password, image, refresh_token, created_at, updated_at, bio
 FROM
   users
 WHERE
@@ -101,6 +102,7 @@ func (q *Queries) FindUserByEmail(ctx context.Context, email string) (User, erro
 		&i.RefreshToken,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.Bio,
 	)
 	return i, err
 }
@@ -111,11 +113,12 @@ SET
   "name" = $2,
   "password" = $3,
   "image" = $4,
-  "updated_at" = $5
+  "bio" = $5,
+  "updated_at" = $6
 WHERE
   email = $1
 RETURNING
-  id, email, name, password, image, refresh_token, created_at, updated_at
+  id, email, name, password, image, refresh_token, created_at, updated_at, bio
 `
 
 type UpdateUserInfoParams struct {
@@ -123,6 +126,7 @@ type UpdateUserInfoParams struct {
 	Name      string
 	Password  string
 	Image     sql.NullString
+	Bio       sql.NullString
 	UpdatedAt time.Time
 }
 
@@ -132,6 +136,7 @@ func (q *Queries) UpdateUserInfo(ctx context.Context, arg UpdateUserInfoParams) 
 		arg.Name,
 		arg.Password,
 		arg.Image,
+		arg.Bio,
 		arg.UpdatedAt,
 	)
 	var i User
@@ -144,6 +149,7 @@ func (q *Queries) UpdateUserInfo(ctx context.Context, arg UpdateUserInfoParams) 
 		&i.RefreshToken,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.Bio,
 	)
 	return i, err
 }
@@ -155,7 +161,7 @@ SET
 WHERE
   email = $1
 RETURNING
-  id, email, name, password, image, refresh_token, created_at, updated_at
+  id, email, name, password, image, refresh_token, created_at, updated_at, bio
 `
 
 type UpdateUserRefreshTokenParams struct {
@@ -175,6 +181,7 @@ func (q *Queries) UpdateUserRefreshToken(ctx context.Context, arg UpdateUserRefr
 		&i.RefreshToken,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.Bio,
 	)
 	return i, err
 }

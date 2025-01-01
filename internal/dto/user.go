@@ -22,6 +22,7 @@ type UserUpdate struct {
 	Name     string `json:"name"`
 	Password string `json:"password"`
 	Image    string `json:"image"`
+	Bio      string `json:"bio"`
 }
 
 func (user *UserSignUp) ValidateInput() error {
@@ -67,7 +68,10 @@ func (user *UserUpdate) ValidateInput() error {
 	if len(user.Password) > 0 && len(user.Password) < 6 {
 		errArr = append(errArr, "password too short")
 	}
-	if len(user.Password) == 0 && len(user.Name) == 0 && len(user.Image) == 0 {
+	if len(user.Bio) > 255 {
+		errArr = append(errArr, "bio must less than 255 characters")
+	}
+	if len(user.Password) == 0 && len(user.Name) == 0 && len(user.Image) == 0 && len(user.Bio) == 0 {
 		errArr = append(errArr, "nothing has changed")
 	}
 	if len(errArr) > 0 {

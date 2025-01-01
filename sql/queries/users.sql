@@ -43,7 +43,8 @@ SET
   "name" = $2,
   "password" = $3,
   "image" = $4,
-  "updated_at" = $5
+  "bio" = $5,
+  "updated_at" = $6
 WHERE
   email = $1
 RETURNING
