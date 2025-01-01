@@ -16,7 +16,7 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
-type OauthApi struct {
+type OauthHandler struct {
 	DB *database.Queries
 }
 
@@ -26,13 +26,13 @@ type oauthUserInfo struct {
 	Picture string `json:"picture"`
 }
 
-func NewOauthApi() OauthApi {
-	return OauthApi{
+func NewOauthHandler() OauthHandler {
+	return OauthHandler{
 		DB: cfg.DBQueries,
 	}
 }
 
-func (oauthApi *OauthApi) HandleGoogleOauth(w http.ResponseWriter, r *http.Request) {
+func (oauthHandler *OauthHandler) HandleGoogleOauth(w http.ResponseWriter, r *http.Request) {
 	queries := r.URL.Query()
 	tokenType, accessToken, redirectTo := queries.Get("token_type"), queries.Get("access_token"), queries.Get("redirect_to")
 	userData, err := getGoogleUserInfo(tokenType, accessToken)
@@ -40,7 +40,7 @@ func (oauthApi *OauthApi) HandleGoogleOauth(w http.ResponseWriter, r *http.Reque
 		resp.Err(w, 404, err.Error())
 		return
 	}
-	access_token, refresh_token, err := oauthApi.signInOauthUser(userData)
+	access_token, refresh_token, err := oauthHandler.signInOauthUser(userData)
 	if err != nil {
 		if err.Error() == "unregistered user" {
 			http.Redirect(w, r, fmt.Sprintf("%s/signup?email=%s&name=%s&image=%s", cfg.FrontendUrl, userData.Email, userData.Name, userData.Picture), http.StatusTemporaryRedirect)
@@ -65,7 +65,7 @@ func (oauthApi *OauthApi) HandleGoogleOauth(w http.ResponseWriter, r *http.Reque
 	})
 }
 
-func (oauthApi *OauthApi) HandleGithubOauth(w http.ResponseWriter, r *http.Request) {
+func (oauthHandler *OauthHandler) HandleGithubOauth(w http.ResponseWriter, r *http.Request) {
 	queries := r.URL.Query()
 	tokenType, accessToken, redirectTo := queries.Get("token_type"), queries.Get("access_token"), queries.Get("redirect_to")
 	userData, err := getGithubUserInfo(tokenType, accessToken)
@@ -73,7 +73,7 @@ func (oauthApi *OauthApi) HandleGithubOauth(w http.ResponseWriter, r *http.Reque
 		resp.Err(w, 404, err.Error())
 		return
 	}
-	access_token, refresh_token, err := oauthApi.signInOauthUser(userData)
+	access_token, refresh_token, err := oauthHandler.signInOauthUser(userData)
 	if err != nil {
 		if err.Error() == "unregistered user" {
 			http.Redirect(w, r, fmt.Sprintf("%s/signup?email=%s&name=%s&image=%s", cfg.FrontendUrl, userData.Email, userData.Name, userData.Picture), http.StatusTemporaryRedirect)
@@ -98,7 +98,7 @@ func (oauthApi *OauthApi) HandleGithubOauth(w http.ResponseWriter, r *http.Reque
 	})
 }
 
-func (oauthApi *OauthApi) HandleMicrosoftOauth(w http.ResponseWriter, r *http.Request) {
+func (oauthHandler *OauthHandler) HandleMicrosoftOauth(w http.ResponseWriter, r *http.Request) {
 	queries := r.URL.Query()
 	tokenType, accessToken, redirectTo := queries.Get("token_type"), queries.Get("access_token"), queries.Get("redirect_to")
 	userData, err := getMicrosoftUserInfo(tokenType, accessToken)
@@ -106,7 +106,7 @@ func (oauthApi *OauthApi) HandleMicrosoftOauth(w http.ResponseWriter, r *http.Re
 		resp.Err(w, 404, err.Error())
 		return
 	}
-	access_token, refresh_token, err := oauthApi.signInOauthUser(userData)
+	access_token, refresh_token, err := oauthHandler.signInOauthUser(userData)
 	if err != nil {
 		if err.Error() == "unregistered user" {
 			http.Redirect(w, r, fmt.Sprintf("%s/signup?email=%s&name=%s&image=%s", cfg.FrontendUrl, userData.Email, userData.Name, userData.Picture), http.StatusTemporaryRedirect)
@@ -131,7 +131,7 @@ func (oauthApi *OauthApi) HandleMicrosoftOauth(w http.ResponseWriter, r *http.Re
 	})
 }
 
-func (oauthApi *OauthApi) HandleDiscordOauth(w http.ResponseWriter, r *http.Request) {
+func (oauthHandler *OauthHandler) HandleDiscordOauth(w http.ResponseWriter, r *http.Request) {
 	queries := r.URL.Query()
 	tokenType, accessToken, redirectTo := queries.Get("token_type"), queries.Get("access_token"), queries.Get("redirect_to")
 	userData, err := getDiscordUserInfo(tokenType, accessToken)
@@ -139,7 +139,7 @@ func (oauthApi *OauthApi) HandleDiscordOauth(w http.ResponseWriter, r *http.Requ
 		resp.Err(w, 404, err.Error())
 		return
 	}
-	access_token, refresh_token, err := oauthApi.signInOauthUser(userData)
+	access_token, refresh_token, err := oauthHandler.signInOauthUser(userData)
 	if err != nil {
 		if err.Error() == "unregistered user" {
 			http.Redirect(w, r, fmt.Sprintf("%s/signup?email=%s&name=%s&image=%s", cfg.FrontendUrl, userData.Email, userData.Name, userData.Picture), http.StatusTemporaryRedirect)
@@ -271,8 +271,8 @@ func getDiscordUserInfo(tokenType, accessToken string) (oauthUserInfo, error) {
 	}, nil
 }
 
-func (oauthApi *OauthApi) signInOauthUser(user oauthUserInfo) (string, string, error) {
-	dbUser, err := oauthApi.DB.FindUserByEmail(context.Background(), user.Email)
+func (oauthHandler *OauthHandler) signInOauthUser(user oauthUserInfo) (string, string, error) {
+	dbUser, err := oauthHandler.DB.FindUserByEmail(context.Background(), user.Email)
 
 	if err != nil {
 		return "", "", errors.New("unregistered user")
@@ -307,7 +307,7 @@ func (oauthApi *OauthApi) signInOauthUser(user oauthUserInfo) (string, string, e
 		return "", "", nil
 	}
 
-	_, err = oauthApi.DB.UpdateUserRefreshToken(context.Background(), database.UpdateUserRefreshTokenParams{
+	_, err = oauthHandler.DB.UpdateUserRefreshToken(context.Background(), database.UpdateUserRefreshTokenParams{
 		Email:        dbUser.Email,
 		RefreshToken: sql.NullString{String: refresh_token, Valid: true},
 	})

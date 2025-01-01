@@ -15,17 +15,17 @@ import (
 	"github.com/google/uuid"
 )
 
-type PostApi struct {
+type PostsHandler struct {
 	DB *database.Queries
 }
 
-func NewPostApi() PostApi {
-	return PostApi{
+func NewPostsHandler() PostsHandler {
+	return PostsHandler{
 		DB: cfg.DBQueries,
 	}
 }
 
-func (postApi *PostApi) GetAllPosts(w http.ResponseWriter, r *http.Request) {
+func (postsHandler *PostsHandler) GetAllPosts(w http.ResponseWriter, r *http.Request) {
 	queryParams := r.URL.Query()
 	sort, limitStr, offsetStr := queryParams.Get("sort"), queryParams.Get("limit"), queryParams.Get("offset")
 	limit, err := strconv.Atoi(limitStr)
@@ -37,7 +37,7 @@ func (postApi *PostApi) GetAllPosts(w http.ResponseWriter, r *http.Request) {
 		offset = 0
 	}
 	if sort == "new" {
-		posts, err := postApi.DB.GetNewPosts(r.Context(), database.GetNewPostsParams{
+		posts, err := postsHandler.DB.GetNewPosts(r.Context(), database.GetNewPostsParams{
 			Limit:  int32(limit),
 			Offset: int32(offset),
 		})
@@ -53,7 +53,7 @@ func (postApi *PostApi) GetAllPosts(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if sort == "top" {
-		posts, err := postApi.DB.GetTopPosts(r.Context(), database.GetTopPostsParams{
+		posts, err := postsHandler.DB.GetTopPosts(r.Context(), database.GetTopPostsParams{
 			Limit:  int32(limit),
 			Offset: int32(offset),
 		})
@@ -68,7 +68,7 @@ func (postApi *PostApi) GetAllPosts(w http.ResponseWriter, r *http.Request) {
 		resp.Json(w, 200, ret)
 		return
 	}
-	posts, err := postApi.DB.GetHotPosts(r.Context(), database.GetHotPostsParams{
+	posts, err := postsHandler.DB.GetHotPosts(r.Context(), database.GetHotPostsParams{
 		Limit:  int32(limit),
 		Offset: int32(offset),
 	})
@@ -83,7 +83,7 @@ func (postApi *PostApi) GetAllPosts(w http.ResponseWriter, r *http.Request) {
 	resp.Json(w, 200, ret)
 }
 
-func (postApi *PostApi) CreatePost(w http.ResponseWriter, r *http.Request) {
+func (postsHandler *PostsHandler) CreatePost(w http.ResponseWriter, r *http.Request) {
 	params := dto.CretaePostDTO{}
 	err := parser.ParseBody(r.Body, &params)
 	if err != nil {
@@ -108,7 +108,7 @@ func (postApi *PostApi) CreatePost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	currentTime := time.Now()
-	post, err := postApi.DB.CreatePost(r.Context(), database.CreatePostParams{
+	post, err := postsHandler.DB.CreatePost(r.Context(), database.CreatePostParams{
 		ID:        uuid.New(),
 		Title:     params.Title,
 		Content:   params.Content,
@@ -123,14 +123,14 @@ func (postApi *PostApi) CreatePost(w http.ResponseWriter, r *http.Request) {
 	resp.Json(w, 201, models.FormatDatabasePost(post))
 }
 
-func (postApi *PostApi) GetPostById(w http.ResponseWriter, r *http.Request) {
+func (postsHandler *PostsHandler) GetPostById(w http.ResponseWriter, r *http.Request) {
 	postId := r.PathValue("post_id")
 	postUUID, err := uuid.Parse(postId)
 	if err != nil {
 		resp.Err(w, 400, err.Error())
 		return
 	}
-	post, err := postApi.DB.GetPostById(r.Context(), postUUID)
+	post, err := postsHandler.DB.GetPostById(r.Context(), postUUID)
 	if err != nil {
 		resp.Err(w, 404, err.Error())
 		return
@@ -138,7 +138,7 @@ func (postApi *PostApi) GetPostById(w http.ResponseWriter, r *http.Request) {
 	resp.Json(w, 200, models.FormatDatabaseGetPostByIdRow(post))
 }
 
-func (postApi *PostApi) UpVotePost(w http.ResponseWriter, r *http.Request) {
+func (postsHandler *PostsHandler) UpVotePost(w http.ResponseWriter, r *http.Request) {
 	postId := r.PathValue("post_id")
 	postUUID, err := uuid.Parse(postId)
 	if err != nil {
@@ -157,7 +157,7 @@ func (postApi *PostApi) UpVotePost(w http.ResponseWriter, r *http.Request) {
 		resp.Err(w, 400, err.Error())
 		return
 	}
-	err = postApi.DB.VotePost(r.Context(), cfg.DBConnection, authorUuid, postUUID, "up")
+	err = postsHandler.DB.VotePost(r.Context(), cfg.DBConnection, authorUuid, postUUID, "up")
 	if err != nil {
 		resp.Err(w, 400, err.Error())
 		return
@@ -168,7 +168,7 @@ func (postApi *PostApi) UpVotePost(w http.ResponseWriter, r *http.Request) {
 	}{Message: "success"})
 }
 
-func (postApi *PostApi) DownVotePost(w http.ResponseWriter, r *http.Request) {
+func (postsHandler *PostsHandler) DownVotePost(w http.ResponseWriter, r *http.Request) {
 	postId := r.PathValue("post_id")
 	postUUID, err := uuid.Parse(postId)
 	if err != nil {
@@ -187,7 +187,7 @@ func (postApi *PostApi) DownVotePost(w http.ResponseWriter, r *http.Request) {
 		resp.Err(w, 400, err.Error())
 		return
 	}
-	err = postApi.DB.VotePost(r.Context(), cfg.DBConnection, authorUuid, postUUID, "down")
+	err = postsHandler.DB.VotePost(r.Context(), cfg.DBConnection, authorUuid, postUUID, "down")
 	if err != nil {
 		resp.Err(w, 400, err.Error())
 		return
@@ -198,7 +198,7 @@ func (postApi *PostApi) DownVotePost(w http.ResponseWriter, r *http.Request) {
 	}{Message: "success"})
 }
 
-func (postApi *PostApi) CheckVoted(w http.ResponseWriter, r *http.Request) {
+func (postsHandler *PostsHandler) CheckVoted(w http.ResponseWriter, r *http.Request) {
 	postId := r.PathValue("post_id")
 	postUUID, err := uuid.Parse(postId)
 	if err != nil {
@@ -217,7 +217,7 @@ func (postApi *PostApi) CheckVoted(w http.ResponseWriter, r *http.Request) {
 		resp.Err(w, 400, err.Error())
 		return
 	}
-	pv, err := postApi.DB.GetPostVotes(r.Context(), database.GetPostVotesParams{
+	pv, err := postsHandler.DB.GetPostVotes(r.Context(), database.GetPostVotesParams{
 		PostID:  postUUID,
 		VoterID: authorUuid,
 	})
@@ -232,7 +232,7 @@ func (postApi *PostApi) CheckVoted(w http.ResponseWriter, r *http.Request) {
 	}{Voted: string(pv.Voted)})
 }
 
-func (postApi *PostApi) AddPostComment(w http.ResponseWriter, r *http.Request) {
+func (postsHandler *PostsHandler) AddPostComment(w http.ResponseWriter, r *http.Request) {
 	params := struct {
 		Comment string `json:"comment"`
 	}{}
@@ -263,7 +263,7 @@ func (postApi *PostApi) AddPostComment(w http.ResponseWriter, r *http.Request) {
 		resp.Err(w, 400, err.Error())
 		return
 	}
-	com, err := postApi.DB.AddComment(r.Context(), cfg.DBConnection, params.Comment, authorUuid, postUUID, uuid.NullUUID{})
+	com, err := postsHandler.DB.AddComment(r.Context(), cfg.DBConnection, params.Comment, authorUuid, postUUID, uuid.NullUUID{})
 	if err != nil {
 		resp.Err(w, 400, err.Error())
 		return
@@ -278,7 +278,7 @@ func (postApi *PostApi) AddPostComment(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func (postApi *PostApi) GetPostComments(w http.ResponseWriter, r *http.Request) {
+func (postsHandler *PostsHandler) GetPostComments(w http.ResponseWriter, r *http.Request) {
 	queryParams := r.URL.Query()
 	limitStr, offsetStr := queryParams.Get("limit"), queryParams.Get("offset")
 	limit, err := strconv.Atoi(limitStr)
@@ -295,7 +295,7 @@ func (postApi *PostApi) GetPostComments(w http.ResponseWriter, r *http.Request) 
 		resp.Err(w, 400, err.Error())
 		return
 	}
-	comments, err := postApi.DB.GetPostComments(r.Context(), database.GetPostCommentsParams{
+	comments, err := postsHandler.DB.GetPostComments(r.Context(), database.GetPostCommentsParams{
 		PostID: postUUID,
 		Limit:  int32(limit),
 		Offset: int32(offset),

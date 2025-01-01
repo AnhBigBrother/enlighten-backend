@@ -107,6 +107,313 @@ func (q *Queries) FindUserByEmail(ctx context.Context, email string) (User, erro
 	return i, err
 }
 
+const getUserHotPosts = `-- name: GetUserHotPosts :many
+SELECT
+  p.id, p.title, p.content, p.author_id, p.up_voted, p.down_voted, p.comments_count, p.created_at, p.updated_at,
+  u.name AS author_name,
+  u.email AS author_email,
+  u.image AS author_image,
+  p.up_voted + p.down_voted + p.comments_count AS total_interactions
+FROM
+  posts p
+  INNER JOIN (
+    SELECT
+      id, email, name, password, image, refresh_token, created_at, updated_at, bio
+    FROM
+      users
+    WHERE
+      users.id = $1
+  ) AS u ON p.author_id = u.id
+ORDER BY
+  total_interactions DESC
+LIMIT
+  $2
+OFFSET
+  $3
+`
+
+type GetUserHotPostsParams struct {
+	ID     uuid.UUID
+	Limit  int32
+	Offset int32
+}
+
+type GetUserHotPostsRow struct {
+	ID                uuid.UUID
+	Title             string
+	Content           string
+	AuthorID          uuid.UUID
+	UpVoted           int32
+	DownVoted         int32
+	CommentsCount     int32
+	CreatedAt         time.Time
+	UpdatedAt         time.Time
+	AuthorName        string
+	AuthorEmail       string
+	AuthorImage       sql.NullString
+	TotalInteractions int32
+}
+
+func (q *Queries) GetUserHotPosts(ctx context.Context, arg GetUserHotPostsParams) ([]GetUserHotPostsRow, error) {
+	rows, err := q.db.QueryContext(ctx, getUserHotPosts, arg.ID, arg.Limit, arg.Offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetUserHotPostsRow
+	for rows.Next() {
+		var i GetUserHotPostsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Title,
+			&i.Content,
+			&i.AuthorID,
+			&i.UpVoted,
+			&i.DownVoted,
+			&i.CommentsCount,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.AuthorName,
+			&i.AuthorEmail,
+			&i.AuthorImage,
+			&i.TotalInteractions,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getUserNewPosts = `-- name: GetUserNewPosts :many
+SELECT
+  p.id, p.title, p.content, p.author_id, p.up_voted, p.down_voted, p.comments_count, p.created_at, p.updated_at,
+  u.name AS author_name,
+  u.email AS author_email,
+  u.image AS author_image
+FROM
+  posts p
+  INNER JOIN (
+    SELECT
+      id, email, name, password, image, refresh_token, created_at, updated_at, bio
+    FROM
+      users
+    WHERE
+      users.id = $1
+  ) AS u ON p.author_id = u.id
+ORDER BY
+  p.created_at DESC
+LIMIT
+  $2
+OFFSET
+  $3
+`
+
+type GetUserNewPostsParams struct {
+	ID     uuid.UUID
+	Limit  int32
+	Offset int32
+}
+
+type GetUserNewPostsRow struct {
+	ID            uuid.UUID
+	Title         string
+	Content       string
+	AuthorID      uuid.UUID
+	UpVoted       int32
+	DownVoted     int32
+	CommentsCount int32
+	CreatedAt     time.Time
+	UpdatedAt     time.Time
+	AuthorName    string
+	AuthorEmail   string
+	AuthorImage   sql.NullString
+}
+
+func (q *Queries) GetUserNewPosts(ctx context.Context, arg GetUserNewPostsParams) ([]GetUserNewPostsRow, error) {
+	rows, err := q.db.QueryContext(ctx, getUserNewPosts, arg.ID, arg.Limit, arg.Offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetUserNewPostsRow
+	for rows.Next() {
+		var i GetUserNewPostsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Title,
+			&i.Content,
+			&i.AuthorID,
+			&i.UpVoted,
+			&i.DownVoted,
+			&i.CommentsCount,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.AuthorName,
+			&i.AuthorEmail,
+			&i.AuthorImage,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getUserOverview = `-- name: GetUserOverview :one
+SELECT
+  u.id,
+  u.name,
+  u.email,
+  u.image,
+  u.bio,
+  u.created_at,
+  u.updated_at,
+  a.total_posts,
+  a.total_upvoted,
+  a.total_downvoted
+FROM
+  users u
+  INNER JOIN (
+    SELECT
+      author_id,
+      COUNT(*) AS total_posts,
+      SUM(up_voted) AS total_upvoted,
+      SUM(down_voted) AS total_downvoted
+    FROM
+      posts
+    WHERE
+      author_id = $1
+    GROUP BY
+      author_id
+  ) a ON u.id = a.author_id
+`
+
+type GetUserOverviewRow struct {
+	ID             uuid.UUID
+	Name           string
+	Email          string
+	Image          sql.NullString
+	Bio            sql.NullString
+	CreatedAt      time.Time
+	UpdatedAt      time.Time
+	TotalPosts     int64
+	TotalUpvoted   int64
+	TotalDownvoted int64
+}
+
+func (q *Queries) GetUserOverview(ctx context.Context, authorID uuid.UUID) (GetUserOverviewRow, error) {
+	row := q.db.QueryRowContext(ctx, getUserOverview, authorID)
+	var i GetUserOverviewRow
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Email,
+		&i.Image,
+		&i.Bio,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.TotalPosts,
+		&i.TotalUpvoted,
+		&i.TotalDownvoted,
+	)
+	return i, err
+}
+
+const getUserTopPosts = `-- name: GetUserTopPosts :many
+SELECT
+  p.id, p.title, p.content, p.author_id, p.up_voted, p.down_voted, p.comments_count, p.created_at, p.updated_at,
+  u.name AS author_name,
+  u.email AS author_email,
+  u.image AS author_image
+FROM
+  posts p
+  INNER JOIN (
+    SELECT
+      id, email, name, password, image, refresh_token, created_at, updated_at, bio
+    FROM
+      users
+    WHERE
+      users.id = $1
+  ) AS u ON p.author_id = u.id
+ORDER BY
+  p.up_voted DESC,
+  p.down_voted ASC
+LIMIT
+  $2
+OFFSET
+  $3
+`
+
+type GetUserTopPostsParams struct {
+	ID     uuid.UUID
+	Limit  int32
+	Offset int32
+}
+
+type GetUserTopPostsRow struct {
+	ID            uuid.UUID
+	Title         string
+	Content       string
+	AuthorID      uuid.UUID
+	UpVoted       int32
+	DownVoted     int32
+	CommentsCount int32
+	CreatedAt     time.Time
+	UpdatedAt     time.Time
+	AuthorName    string
+	AuthorEmail   string
+	AuthorImage   sql.NullString
+}
+
+func (q *Queries) GetUserTopPosts(ctx context.Context, arg GetUserTopPostsParams) ([]GetUserTopPostsRow, error) {
+	rows, err := q.db.QueryContext(ctx, getUserTopPosts, arg.ID, arg.Limit, arg.Offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetUserTopPostsRow
+	for rows.Next() {
+		var i GetUserTopPostsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Title,
+			&i.Content,
+			&i.AuthorID,
+			&i.UpVoted,
+			&i.DownVoted,
+			&i.CommentsCount,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.AuthorName,
+			&i.AuthorEmail,
+			&i.AuthorImage,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const updateUserInfo = `-- name: UpdateUserInfo :one
 UPDATE users
 SET

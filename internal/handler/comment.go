@@ -13,17 +13,17 @@ import (
 	"github.com/google/uuid"
 )
 
-type CommentApi struct {
+type CommentsHandler struct {
 	DB *database.Queries
 }
 
-func NewCommentApi() CommentApi {
-	return CommentApi{
+func NewCommentsHandler() CommentsHandler {
+	return CommentsHandler{
 		DB: cfg.DBQueries,
 	}
 }
 
-func (commentApi *CommentApi) GetCommentReplies(w http.ResponseWriter, r *http.Request) {
+func (commentsHandler *CommentsHandler) GetCommentReplies(w http.ResponseWriter, r *http.Request) {
 	queryParams := r.URL.Query()
 	limitStr, offsetStr := queryParams.Get("limit"), queryParams.Get("offset")
 	limit, err := strconv.Atoi(limitStr)
@@ -46,7 +46,7 @@ func (commentApi *CommentApi) GetCommentReplies(w http.ResponseWriter, r *http.R
 		resp.Err(w, 400, err.Error())
 		return
 	}
-	replies, err := commentApi.DB.GetCommentsReplies(r.Context(), database.GetCommentsRepliesParams{
+	replies, err := commentsHandler.DB.GetCommentsReplies(r.Context(), database.GetCommentsRepliesParams{
 		PostID:          postUUID,
 		ParentCommentID: uuid.NullUUID{UUID: parentCommentUUID, Valid: true},
 		Limit:           int32(limit),
@@ -63,7 +63,7 @@ func (commentApi *CommentApi) GetCommentReplies(w http.ResponseWriter, r *http.R
 	resp.Json(w, 200, ret)
 }
 
-func (commentApi *CommentApi) UpVoteComment(w http.ResponseWriter, r *http.Request) {
+func (commentsHandler *CommentsHandler) UpVoteComment(w http.ResponseWriter, r *http.Request) {
 	session, ok := r.Context().Value("user").(map[string]interface{})
 	if !ok {
 		log.Println("Server error: route must nested inside auth middleware")
@@ -82,7 +82,7 @@ func (commentApi *CommentApi) UpVoteComment(w http.ResponseWriter, r *http.Reque
 		resp.Err(w, 400, err.Error())
 		return
 	}
-	err = commentApi.DB.VoteComment(r.Context(), cfg.DBConnection, authorUuid, commentUUID, "up")
+	err = commentsHandler.DB.VoteComment(r.Context(), cfg.DBConnection, authorUuid, commentUUID, "up")
 	if err != nil {
 		resp.Err(w, 400, err.Error())
 		return
@@ -92,7 +92,7 @@ func (commentApi *CommentApi) UpVoteComment(w http.ResponseWriter, r *http.Reque
 	}{Message: "success"})
 }
 
-func (commentApi *CommentApi) DownVoteComment(w http.ResponseWriter, r *http.Request) {
+func (commentsHandler *CommentsHandler) DownVoteComment(w http.ResponseWriter, r *http.Request) {
 	session, ok := r.Context().Value("user").(map[string]interface{})
 	if !ok {
 		log.Println("Server error: route must nested inside auth middleware")
@@ -111,7 +111,7 @@ func (commentApi *CommentApi) DownVoteComment(w http.ResponseWriter, r *http.Req
 		resp.Err(w, 400, err.Error())
 		return
 	}
-	err = commentApi.DB.VoteComment(r.Context(), cfg.DBConnection, authorUuid, commentUUID, "down")
+	err = commentsHandler.DB.VoteComment(r.Context(), cfg.DBConnection, authorUuid, commentUUID, "down")
 	if err != nil {
 		resp.Err(w, 400, err.Error())
 		return
@@ -121,7 +121,7 @@ func (commentApi *CommentApi) DownVoteComment(w http.ResponseWriter, r *http.Req
 	}{Message: "success"})
 }
 
-func (commentApi *CommentApi) CheckVoted(w http.ResponseWriter, r *http.Request) {
+func (commentsHandler *CommentsHandler) CheckVoted(w http.ResponseWriter, r *http.Request) {
 	session, ok := r.Context().Value("user").(map[string]interface{})
 	if !ok {
 		log.Println("Server error: route must nested inside auth middleware")
@@ -140,7 +140,7 @@ func (commentApi *CommentApi) CheckVoted(w http.ResponseWriter, r *http.Request)
 		resp.Err(w, 400, err.Error())
 		return
 	}
-	cv, err := commentApi.DB.GetCommentVotes(r.Context(), database.GetCommentVotesParams{
+	cv, err := commentsHandler.DB.GetCommentVotes(r.Context(), database.GetCommentVotesParams{
 		CommentID: commentUUID,
 		VoterID:   authorUuid,
 	})
@@ -155,7 +155,7 @@ func (commentApi *CommentApi) CheckVoted(w http.ResponseWriter, r *http.Request)
 	}{Voted: string(cv.Voted)})
 }
 
-func (commentApi *CommentApi) ReplyComment(w http.ResponseWriter, r *http.Request) {
+func (commentsHandler *CommentsHandler) ReplyComment(w http.ResponseWriter, r *http.Request) {
 	session, ok := r.Context().Value("user").(map[string]interface{})
 	if !ok {
 		log.Println("Server error: route must nested inside auth middleware")
@@ -192,7 +192,7 @@ func (commentApi *CommentApi) ReplyComment(w http.ResponseWriter, r *http.Reques
 		resp.Err(w, 400, "reply is required")
 		return
 	}
-	com, err := commentApi.DB.AddComment(r.Context(), cfg.DBConnection, params.Reply, authorUuid, postUUID, uuid.NullUUID{UUID: parentCommentUUID, Valid: true})
+	com, err := commentsHandler.DB.AddComment(r.Context(), cfg.DBConnection, params.Reply, authorUuid, postUUID, uuid.NullUUID{UUID: parentCommentUUID, Valid: true})
 	if err != nil {
 		resp.Err(w, 400, "reply is required")
 		return

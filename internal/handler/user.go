@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"log"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/AnhBigBrother/enlighten-backend/cfg"
@@ -18,17 +19,17 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-type UserApi struct {
+type UsersHandler struct {
 	DB *database.Queries
 }
 
-func NewUserApi() UserApi {
-	return UserApi{
+func NewUsersHandler() UsersHandler {
+	return UsersHandler{
 		DB: cfg.DBQueries,
 	}
 }
 
-func (userApi *UserApi) SignUp(w http.ResponseWriter, r *http.Request) {
+func (usersHandler *UsersHandler) SignUp(w http.ResponseWriter, r *http.Request) {
 	params := dto.UserSignUp{}
 	err := parser.ParseBody(r.Body, &params)
 	if err != nil {
@@ -76,7 +77,7 @@ func (userApi *UserApi) SignUp(w http.ResponseWriter, r *http.Request) {
 		createUserParams.Image = sql.NullString{String: params.Image, Valid: true}
 	}
 
-	_, err = userApi.DB.CreateUser(r.Context(), createUserParams)
+	_, err = usersHandler.DB.CreateUser(r.Context(), createUserParams)
 	if err != nil {
 		resp.Err(w, 400, err.Error())
 		return
@@ -107,7 +108,7 @@ func (userApi *UserApi) SignUp(w http.ResponseWriter, r *http.Request) {
 	}{AccessToken: access_token, RefreshToken: refresh_token})
 }
 
-func (userApi *UserApi) SignIn(w http.ResponseWriter, r *http.Request) {
+func (usersHandler *UsersHandler) SignIn(w http.ResponseWriter, r *http.Request) {
 	params := dto.UserLogIn{}
 	err := parser.ParseBody(r.Body, &params)
 	if err != nil {
@@ -119,7 +120,7 @@ func (userApi *UserApi) SignIn(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user, err := userApi.DB.FindUserByEmail(r.Context(), params.Email)
+	user, err := usersHandler.DB.FindUserByEmail(r.Context(), params.Email)
 	if err != nil {
 		resp.Err(w, 404, err.Error())
 		return
@@ -161,7 +162,7 @@ func (userApi *UserApi) SignIn(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, err = userApi.DB.UpdateUserRefreshToken(r.Context(), database.UpdateUserRefreshTokenParams{
+	_, err = usersHandler.DB.UpdateUserRefreshToken(r.Context(), database.UpdateUserRefreshTokenParams{
 		Email:        params.Email,
 		RefreshToken: sql.NullString{String: refresh_token, Valid: true},
 	})
@@ -179,7 +180,7 @@ func (userApi *UserApi) SignIn(w http.ResponseWriter, r *http.Request) {
 	}{AccessToken: access_token, RefreshToken: refresh_token})
 }
 
-func (userApi *UserApi) SignOut(w http.ResponseWriter, r *http.Request) {
+func (usersHandler *UsersHandler) SignOut(w http.ResponseWriter, r *http.Request) {
 	session, ok := r.Context().Value("user").(map[string]interface{})
 	if !ok {
 		log.Println("Server error: route must nested inside auth middleware")
@@ -188,7 +189,7 @@ func (userApi *UserApi) SignOut(w http.ResponseWriter, r *http.Request) {
 	}
 	sessionEmail := session["email"].(string)
 
-	_, err := userApi.DB.UpdateUserRefreshToken(r.Context(), database.UpdateUserRefreshTokenParams{
+	_, err := usersHandler.DB.UpdateUserRefreshToken(r.Context(), database.UpdateUserRefreshTokenParams{
 		Email:        sessionEmail,
 		RefreshToken: sql.NullString{String: "", Valid: false},
 	})
@@ -205,7 +206,7 @@ func (userApi *UserApi) SignOut(w http.ResponseWriter, r *http.Request) {
 	}{Message: "Signed out"})
 }
 
-func (userApi *UserApi) GetMe(w http.ResponseWriter, r *http.Request) {
+func (usersHandler *UsersHandler) GetMe(w http.ResponseWriter, r *http.Request) {
 	session, ok := r.Context().Value("user").(map[string]interface{})
 	if !ok {
 		log.Println("Server error: route must nested inside auth middleware")
@@ -213,7 +214,7 @@ func (userApi *UserApi) GetMe(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	sessionEmail := session["email"].(string)
-	currUser, err := userApi.DB.FindUserByEmail(r.Context(), sessionEmail)
+	currUser, err := usersHandler.DB.FindUserByEmail(r.Context(), sessionEmail)
 	if err != nil {
 		resp.Err(w, 404, err.Error())
 		return
@@ -222,7 +223,7 @@ func (userApi *UserApi) GetMe(w http.ResponseWriter, r *http.Request) {
 	resp.Json(w, 200, models.FormatDatabaseUser(currUser))
 }
 
-func (userApi *UserApi) UpdateMe(w http.ResponseWriter, r *http.Request) {
+func (usersHandler *UsersHandler) UpdateMe(w http.ResponseWriter, r *http.Request) {
 	params := dto.UserUpdate{}
 	err := parser.ParseBody(r.Body, &params)
 	if err != nil {
@@ -249,7 +250,7 @@ func (userApi *UserApi) UpdateMe(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	sessionEmail := session["email"].(string)
-	user, err := userApi.DB.FindUserByEmail(r.Context(), sessionEmail)
+	user, err := usersHandler.DB.FindUserByEmail(r.Context(), sessionEmail)
 	if err != nil {
 		resp.Err(w, 400, err.Error())
 		return
@@ -274,7 +275,7 @@ func (userApi *UserApi) UpdateMe(w http.ResponseWriter, r *http.Request) {
 	if len(params.Bio) > 0 {
 		updateUserInfoParams.Bio = sql.NullString{String: params.Bio, Valid: true}
 	}
-	_, err = userApi.DB.UpdateUserInfo(r.Context(), updateUserInfoParams)
+	_, err = usersHandler.DB.UpdateUserInfo(r.Context(), updateUserInfoParams)
 	if err != nil {
 		resp.Err(w, 400, err.Error())
 		return
@@ -304,7 +305,7 @@ func (userApi *UserApi) UpdateMe(w http.ResponseWriter, r *http.Request) {
 	}{AccessToken: access_token, RefreshToken: user.RefreshToken.String})
 }
 
-func (userApi *UserApi) DeleteMe(w http.ResponseWriter, r *http.Request) {
+func (usersHandler *UsersHandler) DeleteMe(w http.ResponseWriter, r *http.Request) {
 	password := r.URL.Query().Get("password")
 	session, ok := r.Context().Value("user").(map[string]interface{})
 	if !ok {
@@ -314,7 +315,7 @@ func (userApi *UserApi) DeleteMe(w http.ResponseWriter, r *http.Request) {
 	}
 	sessionEmail := session["email"].(string)
 
-	user, err := userApi.DB.FindUserByEmail(r.Context(), sessionEmail)
+	user, err := usersHandler.DB.FindUserByEmail(r.Context(), sessionEmail)
 	if err != nil {
 		resp.Err(w, 400, err.Error())
 		return
@@ -325,7 +326,7 @@ func (userApi *UserApi) DeleteMe(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = userApi.DB.DeleteUserInfo(r.Context(), sessionEmail)
+	err = usersHandler.DB.DeleteUserInfo(r.Context(), sessionEmail)
 	if err != nil {
 		resp.Err(w, 400, err.Error())
 		return
@@ -339,7 +340,7 @@ func (userApi *UserApi) DeleteMe(w http.ResponseWriter, r *http.Request) {
 	}{Message: "success"})
 }
 
-func (userApi *UserApi) GetSesion(w http.ResponseWriter, r *http.Request) {
+func (usersHandler *UsersHandler) GetSesion(w http.ResponseWriter, r *http.Request) {
 	session, ok := r.Context().Value("user").(map[string]interface{})
 	if !ok {
 		log.Println("Server error: route must nested inside auth middleware")
@@ -349,7 +350,7 @@ func (userApi *UserApi) GetSesion(w http.ResponseWriter, r *http.Request) {
 	resp.Json(w, 200, session)
 }
 
-func (userApi *UserApi) GetAccessToken(w http.ResponseWriter, r *http.Request) {
+func (usersHandler *UsersHandler) GetAccessToken(w http.ResponseWriter, r *http.Request) {
 	refresh_token := r.URL.Query().Get("refresh_token")
 	if refresh_token == "" {
 		cookie, err := r.Cookie("refresh_token")
@@ -387,7 +388,7 @@ func (userApi *UserApi) GetAccessToken(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user, err := userApi.DB.UpdateUserRefreshToken(r.Context(), database.UpdateUserRefreshTokenParams{
+	user, err := usersHandler.DB.UpdateUserRefreshToken(r.Context(), database.UpdateUserRefreshTokenParams{
 		Email:        claims["email"].(string),
 		RefreshToken: sql.NullString{String: new_refresh_token, Valid: true},
 	})
@@ -419,4 +420,145 @@ func (userApi *UserApi) GetAccessToken(w http.ResponseWriter, r *http.Request) {
 		AccessToken  string `json:"access_token"`
 		RefreshToken string `json:"refresh_token"`
 	}{AccessToken: access_token, RefreshToken: new_refresh_token})
+}
+
+func (usersHandler *UsersHandler) GetOverview(w http.ResponseWriter, r *http.Request) {
+	user_id := r.PathValue("user_id")
+	if user_id == "" {
+		resp.Err(w, 400, "invalid user_id")
+		return
+	}
+	userUUID, err := uuid.Parse(user_id)
+	if err != nil {
+		resp.Err(w, 400, "invalid user_id")
+		return
+	}
+	overview, err := usersHandler.DB.GetUserOverview(r.Context(), userUUID)
+	if err != nil {
+		resp.Err(w, 404, "user not found")
+		return
+	}
+	resp.Json(w, 200, struct {
+		ID             uuid.UUID `json:"id"`
+		Name           string    `json:"name"`
+		Email          string    `json:"email"`
+		Image          string    `json:"image"`
+		Bio            string    `json:"bio"`
+		TotalPosts     int64     `json:"total_posts"`
+		TotalUpvoted   int64     `json:"total_upvoted"`
+		TotalDownvoted int64     `json:"total_downvoted"`
+		CreatedAt      time.Time `json:"created_at"`
+		UpdatedAt      time.Time `json:"updated_at"`
+	}{
+		ID:             overview.ID,
+		Name:           overview.Name,
+		Email:          overview.Email,
+		Image:          overview.Image.String,
+		Bio:            overview.Bio.String,
+		TotalPosts:     overview.TotalPosts,
+		TotalUpvoted:   overview.TotalUpvoted,
+		TotalDownvoted: overview.TotalDownvoted,
+		CreatedAt:      overview.CreatedAt,
+		UpdatedAt:      overview.UpdatedAt,
+	})
+}
+
+func (usersHandler *UsersHandler) GetPosts(w http.ResponseWriter, r *http.Request) {
+	user_id := r.PathValue("user_id")
+	if user_id == "" {
+		resp.Err(w, 400, "invalid user_id")
+		return
+	}
+	userUUID, err := uuid.Parse(user_id)
+	if err != nil {
+		resp.Err(w, 400, "invalid user_id")
+		return
+	}
+	queryParams := r.URL.Query()
+	sort, limitStr, offsetStr := queryParams.Get("sort"), queryParams.Get("limit"), queryParams.Get("offset")
+	limit, err := strconv.Atoi(limitStr)
+	if err != nil {
+		limit = 10
+	}
+	offset, err := strconv.Atoi(offsetStr)
+	if err != nil {
+		offset = 0
+	}
+	type JsonPost struct {
+		ID            uuid.UUID `json:"id"`
+		Title         string    `json:"title"`
+		Content       string    `json:"content"`
+		AuthorID      uuid.UUID `json:"author_id"`
+		UpVoted       int32     `json:"up_voted"`
+		DownVoted     int32     `json:"down_voted"`
+		CommentsCount int32     `json:"comments_count"`
+		CreatedAt     time.Time `json:"created_at"`
+		UpdatedAt     time.Time `json:"updated_at"`
+		AuthorName    string    `json:"author_name"`
+		AuthorEmail   string    `json:"author_email"`
+		AuthorImage   string    `json:"author_image"`
+	}
+	if sort == "hot" {
+		posts, _ := usersHandler.DB.GetUserHotPosts(r.Context(), database.GetUserHotPostsParams{ID: userUUID, Limit: int32(limit), Offset: int32(offset)})
+		jsonPosts := []JsonPost{}
+		for _, p := range posts {
+			jsonPosts = append(jsonPosts, JsonPost{
+				ID:            p.ID,
+				Title:         p.Title,
+				Content:       p.Content,
+				AuthorID:      p.AuthorID,
+				UpVoted:       p.UpVoted,
+				DownVoted:     p.DownVoted,
+				CommentsCount: p.CommentsCount,
+				CreatedAt:     p.CreatedAt,
+				UpdatedAt:     p.UpdatedAt,
+				AuthorName:    p.AuthorName,
+				AuthorEmail:   p.AuthorEmail,
+				AuthorImage:   p.AuthorImage.String,
+			})
+		}
+		resp.Json(w, 200, jsonPosts)
+		return
+	}
+	if sort == "top" {
+		posts, _ := usersHandler.DB.GetUserTopPosts(r.Context(), database.GetUserTopPostsParams{ID: userUUID, Limit: int32(limit), Offset: int32(offset)})
+		jsonPosts := []JsonPost{}
+		for _, p := range posts {
+			jsonPosts = append(jsonPosts, JsonPost{
+				ID:            p.ID,
+				Title:         p.Title,
+				Content:       p.Content,
+				AuthorID:      p.AuthorID,
+				UpVoted:       p.UpVoted,
+				DownVoted:     p.DownVoted,
+				CommentsCount: p.CommentsCount,
+				CreatedAt:     p.CreatedAt,
+				UpdatedAt:     p.UpdatedAt,
+				AuthorName:    p.AuthorName,
+				AuthorEmail:   p.AuthorEmail,
+				AuthorImage:   p.AuthorImage.String,
+			})
+		}
+		resp.Json(w, 200, jsonPosts)
+		return
+	}
+	posts, _ := usersHandler.DB.GetUserNewPosts(r.Context(), database.GetUserNewPostsParams{ID: userUUID, Limit: int32(limit), Offset: int32(offset)})
+	jsonPosts := []JsonPost{}
+	for _, p := range posts {
+		jsonPosts = append(jsonPosts, JsonPost{
+			ID:            p.ID,
+			Title:         p.Title,
+			Content:       p.Content,
+			AuthorID:      p.AuthorID,
+			UpVoted:       p.UpVoted,
+			DownVoted:     p.DownVoted,
+			CommentsCount: p.CommentsCount,
+			CreatedAt:     p.CreatedAt,
+			UpdatedAt:     p.UpdatedAt,
+			AuthorName:    p.AuthorName,
+			AuthorEmail:   p.AuthorEmail,
+			AuthorImage:   p.AuthorImage.String,
+		})
+	}
+	resp.Json(w, 200, jsonPosts)
 }
