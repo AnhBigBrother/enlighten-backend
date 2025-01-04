@@ -209,13 +209,40 @@ func (q *Queries) GetFollowedPosts(ctx context.Context, arg GetFollowedPostsPara
 	return items, nil
 }
 
+const getFollows = `-- name: GetFollows :one
+SELECT
+  id, follower_id, author_id, created_at
+FROM
+  user_follows
+WHERE
+  follower_id = $1
+  AND author_id = $2
+`
+
+type GetFollowsParams struct {
+	FollowerID uuid.UUID
+	AuthorID   uuid.UUID
+}
+
+func (q *Queries) GetFollows(ctx context.Context, arg GetFollowsParams) (UserFollow, error) {
+	row := q.db.QueryRowContext(ctx, getFollows, arg.FollowerID, arg.AuthorID)
+	var i UserFollow
+	err := row.Scan(
+		&i.ID,
+		&i.FollowerID,
+		&i.AuthorID,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
 const getHotFollowedPosts = `-- name: GetHotFollowedPosts :many
 SELECT
   ap.id, ap.title, ap.content, ap.author_id, ap.up_voted, ap.down_voted, ap.comments_count, ap.created_at, ap.updated_at, ap.author_email, ap.author_name, ap.author_image,
   ap.up_voted + ap.down_voted + ap.comments_count AS total_interactions,
   CASE
     WHEN uf.id IS NOT NULL THEN 'Followed'
-    ELSE 'Recommended'
+    ELSE 'Recommend'
   END AS status
 FROM
   (
@@ -311,7 +338,7 @@ SELECT
   ap.id, ap.title, ap.content, ap.author_id, ap.up_voted, ap.down_voted, ap.comments_count, ap.created_at, ap.updated_at, ap.author_email, ap.author_name, ap.author_image,
   CASE
     WHEN uf.id IS NOT NULL THEN 'Followed'
-    ELSE 'Recommended'
+    ELSE 'Recommend'
   END AS status
 FROM
   (
@@ -405,7 +432,7 @@ SELECT
   ap.id, ap.title, ap.content, ap.author_id, ap.up_voted, ap.down_voted, ap.comments_count, ap.created_at, ap.updated_at, ap.author_email, ap.author_name, ap.author_image,
   CASE
     WHEN uf.id IS NOT NULL THEN 'Followed'
-    ELSE 'Recommended'
+    ELSE 'Recommend'
   END AS status
 FROM
   (

@@ -35,6 +35,8 @@ func RegisterRoutes() http.Handler {
 	signedUsersRouter.HandleFunc("GET /session", guard.Auth(usersHandler.GetSesion))
 	signedUsersRouter.HandleFunc("GET /access_token", usersHandler.GetAccessToken)
 	signedUsersRouter.HandleFunc("GET /followed", guard.Auth(usersHandler.GetFollowedAuthor))
+	signedUsersRouter.HandleFunc("GET /overview", guard.Auth(usersHandler.GetMyOverview))
+	signedUsersRouter.HandleFunc("GET /posts", guard.Auth(usersHandler.GetMyPosts))
 
 	usersRouter := http.NewServeMux()
 	usersRouter.HandleFunc("GET /all", usersHandler.GetTopAuthor)
@@ -42,21 +44,22 @@ func RegisterRoutes() http.Handler {
 	usersRouter.HandleFunc("GET /{user_id}/posts", usersHandler.GetPosts)
 	usersRouter.HandleFunc("POST /{user_id}/follows", guard.Auth(usersHandler.Follow))
 	usersRouter.HandleFunc("DELETE /{user_id}/follows", guard.Auth(usersHandler.UnFollow))
+	usersRouter.HandleFunc("GET /{user_id}/follows/check", guard.Auth(usersHandler.CheckFollowed))
 
 	postsRouter := http.NewServeMux()
 	postsRouter.HandleFunc("GET /", postsHandler.GetFollowedPosts)
 	postsRouter.HandleFunc("GET /all", postsHandler.GetAllPosts)
 	postsRouter.HandleFunc("POST /create", guard.Auth(postsHandler.CreatePost))
 	postsRouter.HandleFunc("GET /{post_id}", postsHandler.GetPostById)
-	postsRouter.HandleFunc("GET /{post_id}/checkvoted", guard.Auth(postsHandler.CheckVoted))
-	postsRouter.HandleFunc("POST /{post_id}/upvote", guard.Auth(postsHandler.UpVotePost))
-	postsRouter.HandleFunc("POST /{post_id}/downvote", guard.Auth(postsHandler.DownVotePost))
+	postsRouter.HandleFunc("GET /{post_id}/vote/check", guard.Auth(postsHandler.CheckVoted))
+	postsRouter.HandleFunc("POST /{post_id}/vote/up", guard.Auth(postsHandler.UpVotePost))
+	postsRouter.HandleFunc("POST /{post_id}/vote/down", guard.Auth(postsHandler.DownVotePost))
 	postsRouter.HandleFunc("GET /{post_id}/comments", postsHandler.GetPostComments)
 	postsRouter.HandleFunc("POST /{post_id}/comments", guard.Auth(postsHandler.AddPostComment))
 	postsRouter.HandleFunc("GET /{post_id}/comments/{comment_id}", commentsHandler.GetCommentReplies)
-	postsRouter.HandleFunc("GET /{post_id}/comments/{comment_id}/checkvoted", guard.Auth(commentsHandler.CheckVoted))
-	postsRouter.HandleFunc("POST /{post_id}/comments/{comment_id}/upvote", guard.Auth(commentsHandler.UpVoteComment))
-	postsRouter.HandleFunc("POST /{post_id}/comments/{comment_id}/downvote", guard.Auth(commentsHandler.DownVoteComment))
+	postsRouter.HandleFunc("GET /{post_id}/comments/{comment_id}/vote/check", guard.Auth(commentsHandler.CheckVoted))
+	postsRouter.HandleFunc("POST /{post_id}/comments/{comment_id}/vote/up", guard.Auth(commentsHandler.UpVoteComment))
+	postsRouter.HandleFunc("POST /{post_id}/comments/{comment_id}/vote/down", guard.Auth(commentsHandler.DownVoteComment))
 	postsRouter.HandleFunc("POST /{post_id}/comments/{comment_id}/reply", guard.Auth(commentsHandler.ReplyComment))
 
 	gameRouter := http.NewServeMux()
@@ -78,8 +81,8 @@ func RegisterRoutes() http.Handler {
 		MaxAge:           300,
 	})
 
-	// stack := middleware.CreateStack(corsMiddleware.Handler, middleware.Auth)
-	stack := middleware.CreateStack(corsMiddleware.Handler, middleware.Logging, middleware.Auth)
+	stack := middleware.CreateStack(corsMiddleware.Handler, middleware.Auth)
+	// stack := middleware.CreateStack(corsMiddleware.Handler, middleware.Logging, middleware.Auth)
 
 	return stack(router)
 }

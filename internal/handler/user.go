@@ -398,6 +398,145 @@ func (usersHandler *UsersHandler) GetAccessToken(w http.ResponseWriter, r *http.
 	}{AccessToken: access_token, RefreshToken: new_refresh_token})
 }
 
+func (usersHandler *UsersHandler) GetMyOverview(w http.ResponseWriter, r *http.Request) {
+	user := r.Context().Value(cfg.CtxKeys.User).(map[string]interface{})
+	userId := user["jti"].(string)
+	userUUID, err := uuid.Parse(userId)
+	if err != nil {
+		resp.Err(w, 400, "invalid user_id")
+		return
+	}
+	overview, err := usersHandler.DB.GetUserOverview(r.Context(), userUUID)
+	if err != nil {
+		resp.Err(w, 404, "user not found")
+		return
+	}
+	resp.Json(w, 200, struct {
+		ID             uuid.UUID `json:"id"`
+		Name           string    `json:"name"`
+		Email          string    `json:"email"`
+		Image          string    `json:"image"`
+		Bio            string    `json:"bio"`
+		TotalPosts     int64     `json:"total_posts"`
+		TotalUpvoted   int64     `json:"total_upvoted"`
+		TotalDownvoted int64     `json:"total_downvoted"`
+		Follower       int64     `json:"follower"`
+		Following      int64     `json:"following"`
+		CreatedAt      time.Time `json:"created_at"`
+		UpdatedAt      time.Time `json:"updated_at"`
+	}{
+		ID:             overview.ID,
+		Name:           overview.Name,
+		Email:          overview.Email,
+		Image:          overview.Image.String,
+		Bio:            overview.Bio.String,
+		TotalPosts:     overview.TotalPosts,
+		TotalUpvoted:   overview.TotalUpvoted,
+		TotalDownvoted: overview.TotalDownvoted,
+		Follower:       overview.Follower.Int64,
+		Following:      overview.Following.Int64,
+		CreatedAt:      overview.CreatedAt,
+		UpdatedAt:      overview.UpdatedAt,
+	})
+}
+
+func (usersHandler *UsersHandler) GetMyPosts(w http.ResponseWriter, r *http.Request) {
+	user := r.Context().Value(cfg.CtxKeys.User).(map[string]interface{})
+	userId := user["jti"].(string)
+	userUUID, err := uuid.Parse(userId)
+	if err != nil {
+		resp.Err(w, 400, "invalid user_id")
+		return
+	}
+	queryParams := r.URL.Query()
+	sort, limitStr, offsetStr := queryParams.Get("sort"), queryParams.Get("limit"), queryParams.Get("offset")
+	limit, err := strconv.Atoi(limitStr)
+	if err != nil {
+		limit = 10
+	}
+	offset, err := strconv.Atoi(offsetStr)
+	if err != nil {
+		offset = 0
+	}
+	type JsonPost struct {
+		ID            uuid.UUID `json:"id"`
+		Title         string    `json:"title"`
+		Content       string    `json:"content"`
+		AuthorID      uuid.UUID `json:"author_id"`
+		UpVoted       int32     `json:"up_voted"`
+		DownVoted     int32     `json:"down_voted"`
+		CommentsCount int32     `json:"comments_count"`
+		CreatedAt     time.Time `json:"created_at"`
+		UpdatedAt     time.Time `json:"updated_at"`
+		AuthorName    string    `json:"author_name"`
+		AuthorEmail   string    `json:"author_email"`
+		AuthorImage   string    `json:"author_image"`
+	}
+	if sort == "hot" {
+		posts, _ := usersHandler.DB.GetUserHotPosts(r.Context(), database.GetUserHotPostsParams{ID: userUUID, Limit: int32(limit), Offset: int32(offset)})
+		jsonPosts := []JsonPost{}
+		for _, p := range posts {
+			jsonPosts = append(jsonPosts, JsonPost{
+				ID:            p.ID,
+				Title:         p.Title,
+				Content:       p.Content,
+				AuthorID:      p.AuthorID,
+				UpVoted:       p.UpVoted,
+				DownVoted:     p.DownVoted,
+				CommentsCount: p.CommentsCount,
+				CreatedAt:     p.CreatedAt,
+				UpdatedAt:     p.UpdatedAt,
+				AuthorName:    p.AuthorName,
+				AuthorEmail:   p.AuthorEmail,
+				AuthorImage:   p.AuthorImage.String,
+			})
+		}
+		resp.Json(w, 200, jsonPosts)
+		return
+	}
+	if sort == "top" {
+		posts, _ := usersHandler.DB.GetUserTopPosts(r.Context(), database.GetUserTopPostsParams{ID: userUUID, Limit: int32(limit), Offset: int32(offset)})
+		jsonPosts := []JsonPost{}
+		for _, p := range posts {
+			jsonPosts = append(jsonPosts, JsonPost{
+				ID:            p.ID,
+				Title:         p.Title,
+				Content:       p.Content,
+				AuthorID:      p.AuthorID,
+				UpVoted:       p.UpVoted,
+				DownVoted:     p.DownVoted,
+				CommentsCount: p.CommentsCount,
+				CreatedAt:     p.CreatedAt,
+				UpdatedAt:     p.UpdatedAt,
+				AuthorName:    p.AuthorName,
+				AuthorEmail:   p.AuthorEmail,
+				AuthorImage:   p.AuthorImage.String,
+			})
+		}
+		resp.Json(w, 200, jsonPosts)
+		return
+	}
+	posts, _ := usersHandler.DB.GetUserNewPosts(r.Context(), database.GetUserNewPostsParams{ID: userUUID, Limit: int32(limit), Offset: int32(offset)})
+	jsonPosts := []JsonPost{}
+	for _, p := range posts {
+		jsonPosts = append(jsonPosts, JsonPost{
+			ID:            p.ID,
+			Title:         p.Title,
+			Content:       p.Content,
+			AuthorID:      p.AuthorID,
+			UpVoted:       p.UpVoted,
+			DownVoted:     p.DownVoted,
+			CommentsCount: p.CommentsCount,
+			CreatedAt:     p.CreatedAt,
+			UpdatedAt:     p.UpdatedAt,
+			AuthorName:    p.AuthorName,
+			AuthorEmail:   p.AuthorEmail,
+			AuthorImage:   p.AuthorImage.String,
+		})
+	}
+	resp.Json(w, 200, jsonPosts)
+}
+
 func (usersHandler *UsersHandler) GetOverview(w http.ResponseWriter, r *http.Request) {
 	user_id := r.PathValue("user_id")
 	if user_id == "" {
@@ -423,6 +562,8 @@ func (usersHandler *UsersHandler) GetOverview(w http.ResponseWriter, r *http.Req
 		TotalPosts     int64     `json:"total_posts"`
 		TotalUpvoted   int64     `json:"total_upvoted"`
 		TotalDownvoted int64     `json:"total_downvoted"`
+		Follower       int64     `json:"follower"`
+		Following      int64     `json:"following"`
 		CreatedAt      time.Time `json:"created_at"`
 		UpdatedAt      time.Time `json:"updated_at"`
 	}{
@@ -434,6 +575,8 @@ func (usersHandler *UsersHandler) GetOverview(w http.ResponseWriter, r *http.Req
 		TotalPosts:     overview.TotalPosts,
 		TotalUpvoted:   overview.TotalUpvoted,
 		TotalDownvoted: overview.TotalDownvoted,
+		Follower:       overview.Follower.Int64,
+		Following:      overview.Following.Int64,
 		CreatedAt:      overview.CreatedAt,
 		UpdatedAt:      overview.UpdatedAt,
 	})
@@ -593,6 +736,37 @@ func (usersHandler *UsersHandler) UnFollow(w http.ResponseWriter, r *http.Reques
 	resp.Json(w, 200, struct {
 		Message string `json:"message"`
 	}{Message: "success"})
+}
+
+func (usersHandler *UsersHandler) CheckFollowed(w http.ResponseWriter, r *http.Request) {
+	session := r.Context().Value(cfg.CtxKeys.User).(map[string]interface{})
+	follower_id := session["jti"].(string)
+	follower_uuid, _ := uuid.Parse(follower_id)
+	user_id := r.PathValue("user_id")
+	userUUID, err := uuid.Parse(user_id)
+	if err != nil {
+		resp.Err(w, 400, "invalid user_id")
+		return
+	}
+	follow, err := usersHandler.DB.GetFollows(r.Context(), database.GetFollowsParams{
+		AuthorID:   userUUID,
+		FollowerID: follower_uuid,
+	})
+	if err != nil {
+		resp.Err(w, 400, err.Error())
+		return
+	}
+	resp.Json(w, 200, struct {
+		ID         uuid.UUID `json:"id"`
+		FollowerID uuid.UUID `json:"follower_id"`
+		AuthorID   uuid.UUID `json:"author_id"`
+		CreatedAt  time.Time `json:"created_at"`
+	}{
+		ID:         follow.ID,
+		FollowerID: follow.FollowerID,
+		AuthorID:   follow.AuthorID,
+		CreatedAt:  follow.CreatedAt,
+	})
 }
 
 func (usersHandler *UsersHandler) GetFollowedAuthor(w http.ResponseWriter, r *http.Request) {

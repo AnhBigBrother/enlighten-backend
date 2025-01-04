@@ -12,6 +12,16 @@ WHERE
   AND follower_id = $2
 ;
 
+-- name: GetFollows :one
+SELECT
+  *
+FROM
+  user_follows
+WHERE
+  follower_id = $1
+  AND author_id = $2
+;
+
 -- name: GetFollowedPosts :many
 SELECT
   fa.author_email,

@@ -58,32 +58,69 @@ WHERE
 ;
 
 -- name: GetUserOverview :one
-SELECT
-  u.id,
-  u.name,
-  u.email,
-  u.image,
-  u.bio,
-  u.created_at,
-  u.updated_at,
-  a.total_posts,
-  a.total_upvoted,
-  a.total_downvoted
-FROM
-  users u
-  INNER JOIN (
+WITH
+  total_interactions AS (
     SELECT
-      author_id,
-      COUNT(*) AS total_posts,
-      SUM(up_voted) AS total_upvoted,
-      SUM(down_voted) AS total_downvoted
+      u.id,
+      u.name,
+      u.email,
+      u.image,
+      u.bio,
+      u.created_at,
+      u.updated_at,
+      a.total_posts,
+      a.total_upvoted,
+      a.total_downvoted
     FROM
-      posts
-    WHERE
-      author_id = $1
-    GROUP BY
-      author_id
-  ) a ON u.id = a.author_id
+      (
+        SELECT
+          author_id,
+          COUNT(*) AS total_posts,
+          SUM(up_voted) AS total_upvoted,
+          SUM(down_voted) AS total_downvoted
+        FROM
+          posts p
+        WHERE
+          p.author_id = $1
+        GROUP BY
+          p.author_id
+      ) a
+      INNER JOIN users u ON u.id = a.author_id
+  ),
+  total_follows AS (
+    SELECT
+      *
+    FROM
+      (
+        SELECT
+          author_id,
+          COUNT(id) AS follower
+        FROM
+          user_follows f1
+        WHERE
+          f1.author_id = $1
+        GROUP BY
+          author_id
+      ) fr
+      JOIN (
+        SELECT
+          follower_id,
+          COUNT(id) AS "following"
+        FROM
+          user_follows f2
+        WHERE
+          f2.follower_id = $1
+        GROUP BY
+          f2.follower_id
+      ) fg ON fr.author_id = fg.follower_id
+  )
+SELECT
+  total_interactions.*,
+  total_follows.follower,
+  total_follows.following
+FROM
+  total_interactions
+  LEFT JOIN total_follows ON total_interactions.id = total_follows.author_id
 ;
 
 -- name: GetUserNewPosts :many
