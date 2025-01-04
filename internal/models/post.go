@@ -103,3 +103,54 @@ func FormatDatabaseGetPostByIdRow(dbPost database.GetPostByIdRow) Post {
 		CreatedAt:     dbPost.CreatedAt,
 	}
 }
+
+func FormatDatabaseGetNewFollowedPostsRow(dbPost database.GetNewFollowedPostsRow) Post {
+	return Post{
+		ID:            dbPost.ID,
+		Title:         dbPost.Title,
+		Content:       dbPost.Content,
+		AuthorID:      dbPost.AuthorID,
+		AuthorName:    dbPost.AuthorName.String,
+		AuthorEmail:   dbPost.AuthorEmail.String,
+		AuthorImage:   dbPost.AuthorImage.String,
+		UpdatedAt:     dbPost.UpdatedAt,
+		UpVoted:       dbPost.UpVoted,
+		DownVoted:     dbPost.DownVoted,
+		CommentsCount: dbPost.CommentsCount,
+		CreatedAt:     dbPost.CreatedAt,
+	}
+}
+
+func FormatDatabaseGetTopFollowedPostsRow(dbPost database.GetTopFollowedPostsRow) Post {
+	return Post{
+		ID:            dbPost.ID,
+		Title:         dbPost.Title,
+		Content:       dbPost.Content,
+		AuthorID:      dbPost.AuthorID,
+		AuthorName:    dbPost.AuthorName.String,
+		AuthorEmail:   dbPost.AuthorEmail.String,
+		AuthorImage:   dbPost.AuthorImage.String,
+		UpdatedAt:     dbPost.UpdatedAt,
+		UpVoted:       dbPost.UpVoted,
+		DownVoted:     dbPost.DownVoted,
+		CommentsCount: dbPost.CommentsCount,
+		CreatedAt:     dbPost.CreatedAt,
+	}
+}
+
+func FormatDatabaseGetHotFollowedPostsRow(dbPost database.GetHotFollowedPostsRow) Post {
+	return Post{
+		ID:            dbPost.ID,
+		Title:         dbPost.Title,
+		Content:       dbPost.Content,
+		AuthorID:      dbPost.AuthorID,
+		AuthorName:    dbPost.AuthorName.String,
+		AuthorEmail:   dbPost.AuthorEmail.String,
+		AuthorImage:   dbPost.AuthorImage.String,
+		UpdatedAt:     dbPost.UpdatedAt,
+		UpVoted:       dbPost.UpVoted,
+		DownVoted:     dbPost.DownVoted,
+		CommentsCount: dbPost.CommentsCount,
+		CreatedAt:     dbPost.CreatedAt,
+	}
+}

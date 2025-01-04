@@ -11,6 +11,12 @@ import (
 	"github.com/joho/godotenv"
 )
 
+type contextKey string
+
+type contextKeys struct {
+	User contextKey
+}
+
 var (
 	DBConnection    *sql.DB
 	DBQueries       *database.Queries
@@ -22,6 +28,7 @@ var (
 	AccessTokenAge  int
 	RefreshTokenAge int
 	CookieAge       int
+	CtxKeys         contextKeys
 
 	GithubClientId       string
 	GithubClientSecret   string
@@ -111,6 +118,9 @@ func init() {
 	BackendUrl = backendUrl
 	JwtSecret = jwtSecret
 	Port = port
+	CtxKeys = contextKeys{
+		User: "user",
+	}
 	AccessTokenAge = 30 * 60           // in second
 	RefreshTokenAge = 7 * 24 * 60 * 60 // in second
 	CookieAge = 7 * 24 * 60 * 60       // in second

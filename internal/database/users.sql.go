@@ -107,6 +107,77 @@ func (q *Queries) FindUserByEmail(ctx context.Context, email string) (User, erro
 	return i, err
 }
 
+const getTopAuthor = `-- name: GetTopAuthor :many
+SELECT
+  a.author_id, a.total_posts, a.total_upvoted,
+  u.name AS author_name,
+  u.email AS author_email,
+  u.image AS author_image
+FROM
+  (
+    SELECT
+      author_id,
+      COUNT(id) AS total_posts,
+      SUM(up_voted) AS total_upvoted
+    FROM
+      posts
+    GROUP BY
+      author_id
+  ) a
+  INNER JOIN users u ON author_id = u.id
+ORDER BY
+  total_upvoted DESC,
+  total_posts DESC
+LIMIT
+  $1
+OFFSET
+  $2
+`
+
+type GetTopAuthorParams struct {
+	Limit  int32
+	Offset int32
+}
+
+type GetTopAuthorRow struct {
+	AuthorID     uuid.UUID
+	TotalPosts   int64
+	TotalUpvoted int64
+	AuthorName   string
+	AuthorEmail  string
+	AuthorImage  sql.NullString
+}
+
+func (q *Queries) GetTopAuthor(ctx context.Context, arg GetTopAuthorParams) ([]GetTopAuthorRow, error) {
+	rows, err := q.db.QueryContext(ctx, getTopAuthor, arg.Limit, arg.Offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetTopAuthorRow
+	for rows.Next() {
+		var i GetTopAuthorRow
+		if err := rows.Scan(
+			&i.AuthorID,
+			&i.TotalPosts,
+			&i.TotalUpvoted,
+			&i.AuthorName,
+			&i.AuthorEmail,
+			&i.AuthorImage,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getUserHotPosts = `-- name: GetUserHotPosts :many
 SELECT
   p.id, p.title, p.content, p.author_id, p.up_voted, p.down_voted, p.comments_count, p.created_at, p.updated_at,

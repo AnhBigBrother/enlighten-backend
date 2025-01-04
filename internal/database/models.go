@@ -105,3 +105,10 @@ type User struct {
 	UpdatedAt    time.Time
 	Bio          sql.NullString
 }
+
+type UserFollow struct {
+	ID         uuid.UUID
+	FollowerID uuid.UUID
+	AuthorID   uuid.UUID
+	CreatedAt  time.Time
+}

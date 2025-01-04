@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"log"
 	"net/http"
 	"strconv"
 
@@ -64,12 +63,7 @@ func (commentsHandler *CommentsHandler) GetCommentReplies(w http.ResponseWriter,
 }
 
 func (commentsHandler *CommentsHandler) UpVoteComment(w http.ResponseWriter, r *http.Request) {
-	session, ok := r.Context().Value("user").(map[string]interface{})
-	if !ok {
-		log.Println("Server error: route must nested inside auth middleware")
-		resp.Json(w, 500, "server error: something went wrong")
-		return
-	}
+	session, _ := r.Context().Value(cfg.CtxKeys.User).(map[string]interface{})
 	authorId, _ := session["jti"].(string)
 	authorUuid, err := uuid.Parse(authorId)
 	if err != nil {
@@ -93,12 +87,7 @@ func (commentsHandler *CommentsHandler) UpVoteComment(w http.ResponseWriter, r *
 }
 
 func (commentsHandler *CommentsHandler) DownVoteComment(w http.ResponseWriter, r *http.Request) {
-	session, ok := r.Context().Value("user").(map[string]interface{})
-	if !ok {
-		log.Println("Server error: route must nested inside auth middleware")
-		resp.Json(w, 500, "server error: something went wrong")
-		return
-	}
+	session, _ := r.Context().Value(cfg.CtxKeys.User).(map[string]interface{})
 	authorId, _ := session["jti"].(string)
 	authorUuid, err := uuid.Parse(authorId)
 	if err != nil {
@@ -122,12 +111,7 @@ func (commentsHandler *CommentsHandler) DownVoteComment(w http.ResponseWriter, r
 }
 
 func (commentsHandler *CommentsHandler) CheckVoted(w http.ResponseWriter, r *http.Request) {
-	session, ok := r.Context().Value("user").(map[string]interface{})
-	if !ok {
-		log.Println("Server error: route must nested inside auth middleware")
-		resp.Json(w, 500, "server error: something went wrong")
-		return
-	}
+	session, _ := r.Context().Value(cfg.CtxKeys.User).(map[string]interface{})
 	authorId, _ := session["jti"].(string)
 	authorUuid, err := uuid.Parse(authorId)
 	if err != nil {
@@ -156,12 +140,7 @@ func (commentsHandler *CommentsHandler) CheckVoted(w http.ResponseWriter, r *htt
 }
 
 func (commentsHandler *CommentsHandler) ReplyComment(w http.ResponseWriter, r *http.Request) {
-	session, ok := r.Context().Value("user").(map[string]interface{})
-	if !ok {
-		log.Println("Server error: route must nested inside auth middleware")
-		resp.Json(w, 500, "server error: something went wrong")
-		return
-	}
+	session, _ := r.Context().Value(cfg.CtxKeys.User).(map[string]interface{})
 	authorId, _ := session["jti"].(string)
 	authorUuid, err := uuid.Parse(authorId)
 	if err != nil {

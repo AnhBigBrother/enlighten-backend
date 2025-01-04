@@ -159,3 +159,30 @@ LIMIT
 OFFSET
   $3
 ;
+
+-- name: GetTopAuthor :many
+SELECT
+  a.*,
+  u.name AS author_name,
+  u.email AS author_email,
+  u.image AS author_image
+FROM
+  (
+    SELECT
+      author_id,
+      COUNT(id) AS total_posts,
+      SUM(up_voted) AS total_upvoted
+    FROM
+      posts
+    GROUP BY
+      author_id
+  ) a
+  INNER JOIN users u ON author_id = u.id
+ORDER BY
+  total_upvoted DESC,
+  total_posts DESC
+LIMIT
+  $1
+OFFSET
+  $2
+;

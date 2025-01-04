@@ -181,12 +181,7 @@ func (usersHandler *UsersHandler) SignIn(w http.ResponseWriter, r *http.Request)
 }
 
 func (usersHandler *UsersHandler) SignOut(w http.ResponseWriter, r *http.Request) {
-	session, ok := r.Context().Value("user").(map[string]interface{})
-	if !ok {
-		log.Println("Server error: route must nested inside auth middleware")
-		resp.Json(w, 500, "server error: something went wrong")
-		return
-	}
+	session := r.Context().Value(cfg.CtxKeys.User).(map[string]interface{})
 	sessionEmail := session["email"].(string)
 
 	_, err := usersHandler.DB.UpdateUserRefreshToken(r.Context(), database.UpdateUserRefreshTokenParams{
@@ -207,12 +202,7 @@ func (usersHandler *UsersHandler) SignOut(w http.ResponseWriter, r *http.Request
 }
 
 func (usersHandler *UsersHandler) GetMe(w http.ResponseWriter, r *http.Request) {
-	session, ok := r.Context().Value("user").(map[string]interface{})
-	if !ok {
-		log.Println("Server error: route must nested inside auth middleware")
-		resp.Json(w, 500, "server error: something went wrong")
-		return
-	}
+	session := r.Context().Value(cfg.CtxKeys.User).(map[string]interface{})
 	sessionEmail := session["email"].(string)
 	currUser, err := usersHandler.DB.FindUserByEmail(r.Context(), sessionEmail)
 	if err != nil {
@@ -243,12 +233,7 @@ func (usersHandler *UsersHandler) UpdateMe(w http.ResponseWriter, r *http.Reques
 		params.Password = string(hashedPassword)
 	}
 
-	session, ok := r.Context().Value("user").(map[string]interface{})
-	if !ok {
-		log.Println("Server error: route must nested inside auth middleware")
-		resp.Json(w, 500, "server error: something went wrong")
-		return
-	}
+	session := r.Context().Value(cfg.CtxKeys.User).(map[string]interface{})
 	sessionEmail := session["email"].(string)
 	user, err := usersHandler.DB.FindUserByEmail(r.Context(), sessionEmail)
 	if err != nil {
@@ -307,12 +292,7 @@ func (usersHandler *UsersHandler) UpdateMe(w http.ResponseWriter, r *http.Reques
 
 func (usersHandler *UsersHandler) DeleteMe(w http.ResponseWriter, r *http.Request) {
 	password := r.URL.Query().Get("password")
-	session, ok := r.Context().Value("user").(map[string]interface{})
-	if !ok {
-		log.Println("Server error: route must nested inside auth middleware")
-		resp.Json(w, 500, "server error: something went wrong")
-		return
-	}
+	session := r.Context().Value(cfg.CtxKeys.User).(map[string]interface{})
 	sessionEmail := session["email"].(string)
 
 	user, err := usersHandler.DB.FindUserByEmail(r.Context(), sessionEmail)
@@ -341,12 +321,7 @@ func (usersHandler *UsersHandler) DeleteMe(w http.ResponseWriter, r *http.Reques
 }
 
 func (usersHandler *UsersHandler) GetSesion(w http.ResponseWriter, r *http.Request) {
-	session, ok := r.Context().Value("user").(map[string]interface{})
-	if !ok {
-		log.Println("Server error: route must nested inside auth middleware")
-		resp.Json(w, 500, "server error: something went wrong")
-		return
-	}
+	session := r.Context().Value(cfg.CtxKeys.User).(map[string]interface{})
 	resp.Json(w, 200, session)
 }
 
@@ -365,6 +340,7 @@ func (usersHandler *UsersHandler) GetAccessToken(w http.ResponseWriter, r *http.
 	claims, err := token.Parse(refresh_token)
 	if err != nil {
 		resp.Err(w, 400, err.Error())
+		return
 	}
 
 	currentTime := time.Now()
@@ -561,4 +537,128 @@ func (usersHandler *UsersHandler) GetPosts(w http.ResponseWriter, r *http.Reques
 		})
 	}
 	resp.Json(w, 200, jsonPosts)
+}
+
+func (usersHandler *UsersHandler) Follow(w http.ResponseWriter, r *http.Request) {
+	session := r.Context().Value(cfg.CtxKeys.User).(map[string]interface{})
+	follower_id := session["jti"].(string)
+	follower_uuid, _ := uuid.Parse(follower_id)
+	user_id := r.PathValue("user_id")
+	if user_id == "" {
+		resp.Err(w, 400, "invalid user_id")
+		return
+	}
+	userUUID, err := uuid.Parse(user_id)
+	if err != nil {
+		resp.Err(w, 400, "invalid user_id")
+		return
+	}
+	err = usersHandler.DB.CreateFollows(r.Context(), database.CreateFollowsParams{
+		ID:         uuid.New(),
+		AuthorID:   userUUID,
+		FollowerID: follower_uuid,
+		CreatedAt:  time.Now(),
+	})
+	if err != nil {
+		resp.Err(w, 400, err.Error())
+		return
+	}
+	resp.Json(w, 201, struct {
+		Message string `json:"message"`
+	}{Message: "success"})
+}
+
+func (usersHandler *UsersHandler) UnFollow(w http.ResponseWriter, r *http.Request) {
+	session := r.Context().Value(cfg.CtxKeys.User).(map[string]interface{})
+	follower_id := session["jti"].(string)
+	follower_uuid, _ := uuid.Parse(follower_id)
+	user_id := r.PathValue("user_id")
+	if user_id == "" {
+		resp.Err(w, 400, "invalid user_id")
+		return
+	}
+	userUUID, err := uuid.Parse(user_id)
+	if err != nil {
+		resp.Err(w, 400, "invalid user_id")
+		return
+	}
+	err = usersHandler.DB.DeleteFollows(r.Context(), database.DeleteFollowsParams{
+		AuthorID:   userUUID,
+		FollowerID: follower_uuid,
+	})
+	if err != nil {
+		resp.Err(w, 400, err.Error())
+		return
+	}
+	resp.Json(w, 200, struct {
+		Message string `json:"message"`
+	}{Message: "success"})
+}
+
+func (usersHandler *UsersHandler) GetFollowedAuthor(w http.ResponseWriter, r *http.Request) {
+	user := r.Context().Value(cfg.CtxKeys.User).(map[string]interface{})
+	userId := user["jti"].(string)
+	userUUID, _ := uuid.Parse(userId)
+	queryParams := r.URL.Query()
+	limitStr, offsetStr := queryParams.Get("limit"), queryParams.Get("offset")
+	limit, err := strconv.Atoi(limitStr)
+	if err != nil {
+		limit = 10
+	}
+	offset, err := strconv.Atoi(offsetStr)
+	if err != nil {
+		offset = 0
+	}
+	followedAuthors, err := usersHandler.DB.GetFollowedAuthor(r.Context(), database.GetFollowedAuthorParams{
+		FollowerID: userUUID,
+		Limit:      int32(limit),
+		Offset:     int32(offset),
+	})
+	if err != nil {
+		resp.Err(w, 400, err.Error())
+		return
+	}
+	ret := []models.Author{}
+	for _, a := range followedAuthors {
+		ret = append(ret, models.Author{
+			ID:    a.ID,
+			Email: a.Email,
+			Name:  a.Name,
+			Image: a.Image.String,
+		})
+	}
+	resp.Json(w, 200, ret)
+}
+
+func (usersHandler *UsersHandler) GetTopAuthor(w http.ResponseWriter, r *http.Request) {
+	queryParams := r.URL.Query()
+	limitStr, offsetStr := queryParams.Get("limit"), queryParams.Get("offset")
+	limit, err := strconv.Atoi(limitStr)
+	if err != nil {
+		limit = 10
+	}
+	offset, err := strconv.Atoi(offsetStr)
+	if err != nil {
+		offset = 0
+	}
+	topAuthors, err := usersHandler.DB.GetTopAuthor(r.Context(), database.GetTopAuthorParams{
+		Limit:  int32(limit),
+		Offset: int32(offset),
+	})
+	if err != nil {
+		resp.Err(w, 400, err.Error())
+		return
+	}
+	ret := []models.Author{}
+	for _, a := range topAuthors {
+		ret = append(ret, models.Author{
+			ID:           a.AuthorID,
+			Email:        a.AuthorEmail,
+			Name:         a.AuthorName,
+			Image:        a.AuthorImage.String,
+			TotalPosts:   a.TotalPosts,
+			TotalUpvoted: a.TotalUpvoted,
+		})
+	}
+	resp.Json(w, 200, ret)
 }

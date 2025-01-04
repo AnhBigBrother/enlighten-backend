@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"log"
 	"net/http"
 	"strconv"
 	"time"
@@ -25,6 +24,78 @@ func NewPostsHandler() PostsHandler {
 	}
 }
 
+func (postsHandler *PostsHandler) GetFollowedPosts(w http.ResponseWriter, r *http.Request) {
+	user, ok := r.Context().Value(cfg.CtxKeys.User).(map[string]interface{})
+	if !ok {
+		postsHandler.GetAllPosts(w, r)
+		return
+	}
+	userId := user["jti"].(string)
+	userUUID, err := uuid.Parse(userId)
+	if err != nil {
+		resp.Err(w, 400, "invalid userId")
+		return
+	}
+	queryParams := r.URL.Query()
+	sort, limitStr, offsetStr := queryParams.Get("sort"), queryParams.Get("limit"), queryParams.Get("offset")
+	limit, err := strconv.Atoi(limitStr)
+	if err != nil {
+		limit = 10
+	}
+	offset, err := strconv.Atoi(offsetStr)
+	if err != nil {
+		offset = 0
+	}
+	if sort == "hot" {
+		posts, err := postsHandler.DB.GetHotFollowedPosts(r.Context(), database.GetHotFollowedPostsParams{
+			FollowerID: userUUID,
+			Limit:      int32(limit),
+			Offset:     int32(offset),
+		})
+		if err != nil {
+			resp.Err(w, 404, err.Error())
+			return
+		}
+		ret := []models.Post{}
+		for _, p := range posts {
+			ret = append(ret, models.FormatDatabaseGetHotFollowedPostsRow(p))
+		}
+		resp.Json(w, 200, ret)
+		return
+	}
+	if sort == "top" {
+		posts, err := postsHandler.DB.GetTopFollowedPosts(r.Context(), database.GetTopFollowedPostsParams{
+			FollowerID: userUUID,
+			Limit:      int32(limit),
+			Offset:     int32(offset),
+		})
+		if err != nil {
+			resp.Err(w, 404, err.Error())
+			return
+		}
+		ret := []models.Post{}
+		for _, p := range posts {
+			ret = append(ret, models.FormatDatabaseGetTopFollowedPostsRow(p))
+		}
+		resp.Json(w, 200, ret)
+		return
+	}
+	posts, err := postsHandler.DB.GetNewFollowedPosts(r.Context(), database.GetNewFollowedPostsParams{
+		FollowerID: userUUID,
+		Limit:      int32(limit),
+		Offset:     int32(offset),
+	})
+	if err != nil {
+		resp.Err(w, 404, err.Error())
+		return
+	}
+	ret := []models.Post{}
+	for _, p := range posts {
+		ret = append(ret, models.FormatDatabaseGetNewFollowedPostsRow(p))
+	}
+	resp.Json(w, 200, ret)
+}
+
 func (postsHandler *PostsHandler) GetAllPosts(w http.ResponseWriter, r *http.Request) {
 	queryParams := r.URL.Query()
 	sort, limitStr, offsetStr := queryParams.Get("sort"), queryParams.Get("limit"), queryParams.Get("offset")
@@ -36,8 +107,8 @@ func (postsHandler *PostsHandler) GetAllPosts(w http.ResponseWriter, r *http.Req
 	if err != nil {
 		offset = 0
 	}
-	if sort == "new" {
-		posts, err := postsHandler.DB.GetNewPosts(r.Context(), database.GetNewPostsParams{
+	if sort == "hot" {
+		posts, err := postsHandler.DB.GetHotPosts(r.Context(), database.GetHotPostsParams{
 			Limit:  int32(limit),
 			Offset: int32(offset),
 		})
@@ -47,7 +118,7 @@ func (postsHandler *PostsHandler) GetAllPosts(w http.ResponseWriter, r *http.Req
 		}
 		ret := []models.Post{}
 		for _, p := range posts {
-			ret = append(ret, models.FormatDatabaseGetNewPostsRow(p))
+			ret = append(ret, models.FormatDatabaseGetHotPostsRow(p))
 		}
 		resp.Json(w, 200, ret)
 		return
@@ -68,7 +139,7 @@ func (postsHandler *PostsHandler) GetAllPosts(w http.ResponseWriter, r *http.Req
 		resp.Json(w, 200, ret)
 		return
 	}
-	posts, err := postsHandler.DB.GetHotPosts(r.Context(), database.GetHotPostsParams{
+	posts, err := postsHandler.DB.GetNewPosts(r.Context(), database.GetNewPostsParams{
 		Limit:  int32(limit),
 		Offset: int32(offset),
 	})
@@ -78,7 +149,7 @@ func (postsHandler *PostsHandler) GetAllPosts(w http.ResponseWriter, r *http.Req
 	}
 	ret := []models.Post{}
 	for _, p := range posts {
-		ret = append(ret, models.FormatDatabaseGetHotPostsRow(p))
+		ret = append(ret, models.FormatDatabaseGetNewPostsRow(p))
 	}
 	resp.Json(w, 200, ret)
 }
@@ -95,12 +166,7 @@ func (postsHandler *PostsHandler) CreatePost(w http.ResponseWriter, r *http.Requ
 		resp.Err(w, 400, err.Error())
 		return
 	}
-	session, ok := r.Context().Value("user").(map[string]interface{})
-	if !ok {
-		log.Println("Server error: route must nested inside auth middleware")
-		resp.Json(w, 500, "server error: something went wrong")
-		return
-	}
+	session, _ := r.Context().Value(cfg.CtxKeys.User).(map[string]interface{})
 	authorId, _ := session["jti"].(string)
 	authorUuid, err := uuid.Parse(authorId)
 	if err != nil {
@@ -145,12 +211,7 @@ func (postsHandler *PostsHandler) UpVotePost(w http.ResponseWriter, r *http.Requ
 		resp.Err(w, 400, err.Error())
 		return
 	}
-	session, ok := r.Context().Value("user").(map[string]interface{})
-	if !ok {
-		log.Println("Server error: route must nested inside auth middleware")
-		resp.Json(w, 500, "server error: something went wrong")
-		return
-	}
+	session, _ := r.Context().Value(cfg.CtxKeys.User).(map[string]interface{})
 	authorId, _ := session["jti"].(string)
 	authorUuid, err := uuid.Parse(authorId)
 	if err != nil {
@@ -175,12 +236,7 @@ func (postsHandler *PostsHandler) DownVotePost(w http.ResponseWriter, r *http.Re
 		resp.Err(w, 400, err.Error())
 		return
 	}
-	session, ok := r.Context().Value("user").(map[string]interface{})
-	if !ok {
-		log.Println("Server error: route must nested inside auth middleware")
-		resp.Json(w, 500, "server error: something went wrong")
-		return
-	}
+	session, _ := r.Context().Value(cfg.CtxKeys.User).(map[string]interface{})
 	authorId, _ := session["jti"].(string)
 	authorUuid, err := uuid.Parse(authorId)
 	if err != nil {
@@ -205,12 +261,7 @@ func (postsHandler *PostsHandler) CheckVoted(w http.ResponseWriter, r *http.Requ
 		resp.Err(w, 400, err.Error())
 		return
 	}
-	session, ok := r.Context().Value("user").(map[string]interface{})
-	if !ok {
-		log.Println("Server error: route must nested inside auth middleware")
-		resp.Json(w, 500, "server error: something went wrong")
-		return
-	}
+	session, _ := r.Context().Value(cfg.CtxKeys.User).(map[string]interface{})
 	authorId, _ := session["jti"].(string)
 	authorUuid, err := uuid.Parse(authorId)
 	if err != nil {
@@ -245,12 +296,7 @@ func (postsHandler *PostsHandler) AddPostComment(w http.ResponseWriter, r *http.
 		resp.Err(w, 400, "comment is required")
 		return
 	}
-	session, ok := r.Context().Value("user").(map[string]interface{})
-	if !ok {
-		log.Println("Server error: route must nested inside auth middleware")
-		resp.Json(w, 500, "server error: something went wrong")
-		return
-	}
+	session, _ := r.Context().Value(cfg.CtxKeys.User).(map[string]interface{})
 	authorId, _ := session["jti"].(string)
 	authorUuid, err := uuid.Parse(authorId)
 	if err != nil {
