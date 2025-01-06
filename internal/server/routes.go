@@ -17,7 +17,7 @@ func RegisterRoutes() http.Handler {
 	oauthHandler := handler.NewOauthHandler()
 	postsHandler := handler.NewPostsHandler()
 	commentsHandler := handler.NewCommentsHandler()
-	sudokuHandler := handler.Sudoku{}
+	sudokuHandler := handler.NewSudokuHandler()
 
 	authRouter := http.NewServeMux()
 	authRouter.HandleFunc("POST /signup", usersHandler.SignUp)

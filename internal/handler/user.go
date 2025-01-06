@@ -417,11 +417,11 @@ func (usersHandler *UsersHandler) GetMyOverview(w http.ResponseWriter, r *http.R
 		Email          string    `json:"email"`
 		Image          string    `json:"image"`
 		Bio            string    `json:"bio"`
-		TotalPosts     int64     `json:"total_posts"`
-		TotalUpvoted   int64     `json:"total_upvoted"`
-		TotalDownvoted int64     `json:"total_downvoted"`
-		Follower       int64     `json:"follower"`
-		Following      int64     `json:"following"`
+		TotalPosts     int32     `json:"total_posts"`
+		TotalUpvoted   int32     `json:"total_upvoted"`
+		TotalDownvoted int32     `json:"total_downvoted"`
+		Follower       int32     `json:"follower"`
+		Following      int32     `json:"following"`
 		CreatedAt      time.Time `json:"created_at"`
 		UpdatedAt      time.Time `json:"updated_at"`
 	}{
@@ -433,8 +433,8 @@ func (usersHandler *UsersHandler) GetMyOverview(w http.ResponseWriter, r *http.R
 		TotalPosts:     overview.TotalPosts,
 		TotalUpvoted:   overview.TotalUpvoted,
 		TotalDownvoted: overview.TotalDownvoted,
-		Follower:       overview.Follower.Int64,
-		Following:      overview.Following.Int64,
+		Follower:       overview.Follower,
+		Following:      overview.Following,
 		CreatedAt:      overview.CreatedAt,
 		UpdatedAt:      overview.UpdatedAt,
 	})
@@ -559,11 +559,11 @@ func (usersHandler *UsersHandler) GetOverview(w http.ResponseWriter, r *http.Req
 		Email          string    `json:"email"`
 		Image          string    `json:"image"`
 		Bio            string    `json:"bio"`
-		TotalPosts     int64     `json:"total_posts"`
-		TotalUpvoted   int64     `json:"total_upvoted"`
-		TotalDownvoted int64     `json:"total_downvoted"`
-		Follower       int64     `json:"follower"`
-		Following      int64     `json:"following"`
+		TotalPosts     int32     `json:"total_posts"`
+		TotalUpvoted   int32     `json:"total_upvoted"`
+		TotalDownvoted int32     `json:"total_downvoted"`
+		Follower       int32     `json:"follower"`
+		Following      int32     `json:"following"`
 		CreatedAt      time.Time `json:"created_at"`
 		UpdatedAt      time.Time `json:"updated_at"`
 	}{
@@ -575,8 +575,8 @@ func (usersHandler *UsersHandler) GetOverview(w http.ResponseWriter, r *http.Req
 		TotalPosts:     overview.TotalPosts,
 		TotalUpvoted:   overview.TotalUpvoted,
 		TotalDownvoted: overview.TotalDownvoted,
-		Follower:       overview.Follower.Int64,
-		Following:      overview.Following.Int64,
+		Follower:       overview.Follower,
+		Following:      overview.Following,
 		CreatedAt:      overview.CreatedAt,
 		UpdatedAt:      overview.UpdatedAt,
 	})
@@ -826,12 +826,13 @@ func (usersHandler *UsersHandler) GetTopAuthor(w http.ResponseWriter, r *http.Re
 	ret := []models.Author{}
 	for _, a := range topAuthors {
 		ret = append(ret, models.Author{
-			ID:           a.AuthorID,
-			Email:        a.AuthorEmail,
-			Name:         a.AuthorName,
-			Image:        a.AuthorImage.String,
-			TotalPosts:   a.TotalPosts,
-			TotalUpvoted: a.TotalUpvoted,
+			ID:            a.AuthorID,
+			Email:         a.AuthorEmail,
+			Name:          a.AuthorName,
+			Image:         a.AuthorImage.String,
+			TotalPosts:    a.TotalPosts,
+			TotalUpvoted:  a.TotalUpvoted,
+			TotalFollower: a.TotalFollower,
 		})
 	}
 	resp.Json(w, 200, ret)

@@ -30,29 +30,29 @@ var (
 	CookieAge       int
 	CtxKeys         contextKeys
 
-	GithubClientId       string
-	GithubClientSecret   string
-	GithubCallbackUrl    string
+	// GithubClientId       string
+	// GithubClientSecret   string
+	// GithubCallbackUrl    string
+	// GithubGetTokenUrl    string
 	GithubGetUserDataUrl string
-	GithubGetTokenUrl    string
 
-	GoogleClientId       string
-	GoogleClientSecret   string
-	GoogleCallbackUrl    string
+	// GoogleClientId       string
+	// GoogleClientSecret   string
+	// GoogleCallbackUrl    string
+	// GoogleGetTokenUrl    string
 	GoogleGetUserDataUrl string
-	GoogleGetTokenUrl    string
 
-	MicrosoftClientId       string
-	MicrosoftClientSecret   string
-	MicrosoftCallbackUrl    string
+	// MicrosoftClientId       string
+	// MicrosoftClientSecret   string
+	// MicrosoftCallbackUrl    string
+	// MicrosoftGetTokenUrl    string
 	MicrosoftGetUserDataUrl string
-	MicrosoftGetTokenUrl    string
 
-	DiscordClientId       string
-	DiscordClientSecret   string
-	DiscordCallbackUrl    string
+	// DiscordClientId       string
+	// DiscordClientSecret   string
+	// DiscordCallbackUrl    string
+	// DiscordGetTokenUrl    string
 	DiscordGetUserDataUrl string
-	DiscordGetTokenUrl    string
 )
 
 func init() {
@@ -72,37 +72,33 @@ func init() {
 		log.Fatal("some of variables is not found in the environment: DB_URI, JWT_SECRET, PORT, FRONTEND_URL, BACKEND_URL")
 	}
 
-	githubClientId := os.Getenv("GITHUB_CLIENT_ID")
-	githubClientSecret := os.Getenv("GITHUB_CLIENT_SECRET")
-	githubCallbackUrl := os.Getenv("GITHUB_CALLBACK_URL")
+	// githubClientId := os.Getenv("GITHUB_CLIENT_ID")
+	// githubClientSecret := os.Getenv("GITHUB_CLIENT_SECRET")
+	// githubCallbackUrl := os.Getenv("GITHUB_CALLBACK_URL")
+	// if githubClientId == "" || githubClientSecret == "" || githubCallbackUrl == "" {
+	// 	log.Fatal("some of variables is not found in the environment: GITHUB_CLIENT_ID, GITHUB_CLIENT_SECRET, GITHUB_CALLBACK_URL")
+	// }
 
-	if githubClientId == "" || githubClientSecret == "" || githubCallbackUrl == "" {
-		log.Fatal("some of variables is not found in the environment: GITHUB_CLIENT_ID, GITHUB_CLIENT_SECRET, GITHUB_CALLBACK_URL")
-	}
+	// googleClientId := os.Getenv("GOOGLE_CLIENT_ID")
+	// googleClientSecret := os.Getenv("GOOGLE_CLIENT_SECRET")
+	// googleCallbackUrl := os.Getenv("GOOGLE_CALLBACK_URL")
+	// if googleClientId == "" || googleClientSecret == "" || googleCallbackUrl == "" {
+	// 	log.Fatal("some of variables is not found in the environment: GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_CALLBACK_URL")
+	// }
 
-	googleClientId := os.Getenv("GOOGLE_CLIENT_ID")
-	googleClientSecret := os.Getenv("GOOGLE_CLIENT_SECRET")
-	googleCallbackUrl := os.Getenv("GOOGLE_CALLBACK_URL")
+	// microsoftClientId := os.Getenv("MICROSOFT_CLIENT_ID")
+	// microsoftClientSecret := os.Getenv("MICROSOFT_CLIENT_SECRET")
+	// microsoftCallbackUrl := os.Getenv("MICROSOFT_CALLBACK_URL")
+	// if microsoftClientId == "" || microsoftClientSecret == "" || microsoftCallbackUrl == "" {
+	// 	log.Fatal("some of variables is not found in the environment: MICROSOFT_CLIENT_ID, MICROSOFT_CLIENT_SECRET, MICROSOFT_CALLBACK_URL")
+	// }
 
-	if googleClientId == "" || googleClientSecret == "" || googleCallbackUrl == "" {
-		log.Fatal("some of variables is not found in the environment: GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_CALLBACK_URL")
-	}
-
-	microsoftClientId := os.Getenv("MICROSOFT_CLIENT_ID")
-	microsoftClientSecret := os.Getenv("MICROSOFT_CLIENT_SECRET")
-	microsoftCallbackUrl := os.Getenv("MICROSOFT_CALLBACK_URL")
-
-	if microsoftClientId == "" || microsoftClientSecret == "" || microsoftCallbackUrl == "" {
-		log.Fatal("some of variables is not found in the environment: MICROSOFT_CLIENT_ID, MICROSOFT_CLIENT_SECRET, MICROSOFT_CALLBACK_URL")
-	}
-
-	discordClientId := os.Getenv("DISCORD_CLIENT_ID")
-	discordClientSecret := os.Getenv("DISCORD_CLIENT_SECRET")
-	discordCallbackUrl := os.Getenv("DISCORD_CALLBACK_URL")
-
-	if discordClientId == "" || discordClientSecret == "" || discordCallbackUrl == "" {
-		log.Fatal("some of variables is not found in the environment: DISCORD_CLIENT_ID, DISCORD_CLIENT_SECRET, DISCORD_CALLBACK_URL")
-	}
+	// discordClientId := os.Getenv("DISCORD_CLIENT_ID")
+	// discordClientSecret := os.Getenv("DISCORD_CLIENT_SECRET")
+	// discordCallbackUrl := os.Getenv("DISCORD_CALLBACK_URL")
+	// if discordClientId == "" || discordClientSecret == "" || discordCallbackUrl == "" {
+	// 	log.Fatal("some of variables is not found in the environment: DISCORD_CLIENT_ID, DISCORD_CLIENT_SECRET, DISCORD_CALLBACK_URL")
+	// }
 
 	conn, err := sql.Open("postgres", dbUri)
 	if err != nil {
@@ -125,27 +121,27 @@ func init() {
 	RefreshTokenAge = 7 * 24 * 60 * 60 // in second
 	CookieAge = 7 * 24 * 60 * 60       // in second
 
-	GithubClientId = githubClientId
-	GithubClientSecret = githubClientSecret
-	GithubCallbackUrl = githubCallbackUrl
+	// GithubClientId = githubClientId
+	// GithubClientSecret = githubClientSecret
+	// GithubCallbackUrl = githubCallbackUrl
+	// GithubGetTokenUrl = "https://github.com/login/oauth/access_token"
 	GithubGetUserDataUrl = "https://api.github.com/user"
-	GithubGetTokenUrl = "https://github.com/login/oauth/access_token"
 
-	GoogleClientId = googleClientId
-	GoogleClientSecret = googleClientSecret
-	GoogleCallbackUrl = googleCallbackUrl
+	// GoogleClientId = googleClientId
+	// GoogleClientSecret = googleClientSecret
+	// GoogleCallbackUrl = googleCallbackUrl
+	// GoogleGetTokenUrl = "https://oauth2.googleapis.com/token"
 	GoogleGetUserDataUrl = "https://www.googleapis.com/oauth2/v3/userinfo"
-	GoogleGetTokenUrl = "https://oauth2.googleapis.com/token"
 
-	MicrosoftClientId = microsoftClientId
-	MicrosoftClientSecret = microsoftClientSecret
-	MicrosoftCallbackUrl = microsoftCallbackUrl
+	// MicrosoftClientId = microsoftClientId
+	// MicrosoftClientSecret = microsoftClientSecret
+	// MicrosoftCallbackUrl = microsoftCallbackUrl
+	// MicrosoftGetTokenUrl = "https://login.microsoftonline.com/common/oauth2/v2.0/token"
 	MicrosoftGetUserDataUrl = "https://graph.microsoft.com/oidc/userinfo"
-	MicrosoftGetTokenUrl = "https://login.microsoftonline.com/common/oauth2/v2.0/token"
 
-	DiscordClientId = discordClientId
-	DiscordClientSecret = discordClientSecret
-	DiscordCallbackUrl = discordCallbackUrl
+	// DiscordClientId = discordClientId
+	// DiscordClientSecret = discordClientSecret
+	// DiscordCallbackUrl = discordCallbackUrl
+	// DiscordGetTokenUrl = "https://discord.com/api/v10/oauth2/token"
 	DiscordGetUserDataUrl = "https://discord.com/api/v10/users/@me"
-	DiscordGetTokenUrl = "https://discord.com/api/v10/oauth2/token"
 }

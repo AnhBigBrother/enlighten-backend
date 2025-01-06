@@ -68,11 +68,28 @@ WITH
       u.bio,
       u.created_at,
       u.updated_at,
-      a.total_posts,
-      a.total_upvoted,
-      a.total_downvoted
+      CASE
+        WHEN a.total_posts IS NULL THEN 0
+        ELSE a.total_posts
+      END::INTEGER AS total_posts,
+      CASE
+        WHEN a.total_upvoted IS NULL THEN 0
+        ELSE a.total_upvoted
+      END::INTEGER AS total_upvoted,
+      CASE
+        WHEN a.total_downvoted IS NULL THEN 0
+        ELSE a.total_downvoted
+      END::INTEGER AS total_downvoted
     FROM
       (
+        SELECT
+          *
+        FROM
+          users u1
+        WHERE
+          u1.id = $1
+      ) u
+      LEFT JOIN (
         SELECT
           author_id,
           COUNT(*) AS total_posts,
@@ -84,8 +101,7 @@ WITH
           p.author_id = $1
         GROUP BY
           p.author_id
-      ) a
-      INNER JOIN users u ON u.id = a.author_id
+      ) a ON u.id = a.author_id
   ),
   total_follows AS (
     SELECT
@@ -116,8 +132,14 @@ WITH
   )
 SELECT
   total_interactions.*,
-  total_follows.follower,
-  total_follows.following
+  CASE
+    WHEN total_follows.follower IS NULL THEN 0
+    ELSE total_follows.follower
+  END::INTEGER AS follower,
+  CASE
+    WHEN total_follows.following IS NULL THEN 0
+    ELSE total_follows.following
+  END::INTEGER AS "following"
 FROM
   total_interactions
   LEFT JOIN total_follows ON total_interactions.id = total_follows.author_id
@@ -198,25 +220,50 @@ OFFSET
 ;
 
 -- name: GetTopAuthor :many
-SELECT
-  a.*,
-  u.name AS author_name,
-  u.email AS author_email,
-  u.image AS author_image
-FROM
-  (
+WITH
+  count_followers AS (
     SELECT
-      author_id,
+      uf.author_id,
+      COUNT(id) AS followers
+    FROM
+      user_follows uf
+    GROUP BY
+      uf.author_id
+  ),
+  authors AS (
+    SELECT
+      p.author_id,
       COUNT(id) AS total_posts,
       SUM(up_voted) AS total_upvoted
     FROM
-      posts
+      posts p
     GROUP BY
-      author_id
-  ) a
-  INNER JOIN users u ON author_id = u.id
+      p.author_id
+  )
+SELECT
+  u.id AS author_id,
+  u.name AS author_name,
+  u.email AS author_email,
+  u.image AS author_image,
+  CASE
+    WHEN a.total_posts IS NULL THEN 0
+    ELSE a.total_posts
+  END::INTEGER AS total_posts,
+  CASE
+    WHEN a.total_upvoted IS NULL THEN 0
+    ELSE a.total_upvoted
+  END::INTEGER AS total_upvoted,
+  CASE
+    WHEN cf.followers IS NULL THEN 0
+    ELSE cf.followers
+  END::INTEGER AS total_follower
+FROM
+  users u
+  LEFT JOIN authors a ON u.id = a.author_id
+  LEFT JOIN count_followers cf ON u.id = cf.author_id
 ORDER BY
   total_upvoted DESC,
+  total_follower DESC,
   total_posts DESC
 LIMIT
   $1

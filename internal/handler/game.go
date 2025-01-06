@@ -11,6 +11,10 @@ import (
 
 type Sudoku struct{}
 
+func NewSudokuHandler() Sudoku {
+	return Sudoku{}
+}
+
 func (s *Sudoku) SolveSudoku(w http.ResponseWriter, r *http.Request) {
 	su := struct {
 		Board [][]int `json:"board"`

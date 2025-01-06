@@ -20,12 +20,13 @@ type User struct {
 }
 
 type Author struct {
-	ID           uuid.UUID `json:"id"`
-	Email        string    `json:"email"`
-	Name         string    `json:"name"`
-	Image        string    `json:"image"`
-	TotalPosts   int64     `json:"total_posts"`
-	TotalUpvoted int64     `json:"total_upvoted"`
+	ID            uuid.UUID `json:"id"`
+	Email         string    `json:"email"`
+	Name          string    `json:"name"`
+	Image         string    `json:"image"`
+	TotalPosts    int32     `json:"total_posts"`
+	TotalUpvoted  int32     `json:"total_upvoted"`
+	TotalFollower int32     `json:"total_followers"`
 }
 
 func FormatDatabaseUser(dbUser database.User) User {

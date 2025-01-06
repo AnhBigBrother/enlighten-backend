@@ -108,25 +108,50 @@ func (q *Queries) FindUserByEmail(ctx context.Context, email string) (User, erro
 }
 
 const getTopAuthor = `-- name: GetTopAuthor :many
-SELECT
-  a.author_id, a.total_posts, a.total_upvoted,
-  u.name AS author_name,
-  u.email AS author_email,
-  u.image AS author_image
-FROM
-  (
+WITH
+  count_followers AS (
     SELECT
-      author_id,
+      uf.author_id,
+      COUNT(id) AS followers
+    FROM
+      user_follows uf
+    GROUP BY
+      uf.author_id
+  ),
+  authors AS (
+    SELECT
+      p.author_id,
       COUNT(id) AS total_posts,
       SUM(up_voted) AS total_upvoted
     FROM
-      posts
+      posts p
     GROUP BY
-      author_id
-  ) a
-  INNER JOIN users u ON author_id = u.id
+      p.author_id
+  )
+SELECT
+  u.id AS author_id,
+  u.name AS author_name,
+  u.email AS author_email,
+  u.image AS author_image,
+  CASE
+    WHEN a.total_posts IS NULL THEN 0
+    ELSE a.total_posts
+  END::INTEGER AS total_posts,
+  CASE
+    WHEN a.total_upvoted IS NULL THEN 0
+    ELSE a.total_upvoted
+  END::INTEGER AS total_upvoted,
+  CASE
+    WHEN cf.followers IS NULL THEN 0
+    ELSE cf.followers
+  END::INTEGER AS total_follower
+FROM
+  users u
+  LEFT JOIN authors a ON u.id = a.author_id
+  LEFT JOIN count_followers cf ON u.id = cf.author_id
 ORDER BY
   total_upvoted DESC,
+  total_follower DESC,
   total_posts DESC
 LIMIT
   $1
@@ -140,12 +165,13 @@ type GetTopAuthorParams struct {
 }
 
 type GetTopAuthorRow struct {
-	AuthorID     uuid.UUID
-	TotalPosts   int64
-	TotalUpvoted int64
-	AuthorName   string
-	AuthorEmail  string
-	AuthorImage  sql.NullString
+	AuthorID      uuid.UUID
+	AuthorName    string
+	AuthorEmail   string
+	AuthorImage   sql.NullString
+	TotalPosts    int32
+	TotalUpvoted  int32
+	TotalFollower int32
 }
 
 func (q *Queries) GetTopAuthor(ctx context.Context, arg GetTopAuthorParams) ([]GetTopAuthorRow, error) {
@@ -159,11 +185,12 @@ func (q *Queries) GetTopAuthor(ctx context.Context, arg GetTopAuthorParams) ([]G
 		var i GetTopAuthorRow
 		if err := rows.Scan(
 			&i.AuthorID,
-			&i.TotalPosts,
-			&i.TotalUpvoted,
 			&i.AuthorName,
 			&i.AuthorEmail,
 			&i.AuthorImage,
+			&i.TotalPosts,
+			&i.TotalUpvoted,
+			&i.TotalFollower,
 		); err != nil {
 			return nil, err
 		}
@@ -354,11 +381,28 @@ WITH
       u.bio,
       u.created_at,
       u.updated_at,
-      a.total_posts,
-      a.total_upvoted,
-      a.total_downvoted
+      CASE
+        WHEN a.total_posts IS NULL THEN 0
+        ELSE a.total_posts
+      END::INTEGER AS total_posts,
+      CASE
+        WHEN a.total_upvoted IS NULL THEN 0
+        ELSE a.total_upvoted
+      END::INTEGER AS total_upvoted,
+      CASE
+        WHEN a.total_downvoted IS NULL THEN 0
+        ELSE a.total_downvoted
+      END::INTEGER AS total_downvoted
     FROM
       (
+        SELECT
+          id, email, name, password, image, refresh_token, created_at, updated_at, bio
+        FROM
+          users u1
+        WHERE
+          u1.id = $1
+      ) u
+      LEFT JOIN (
         SELECT
           author_id,
           COUNT(*) AS total_posts,
@@ -370,8 +414,7 @@ WITH
           p.author_id = $1
         GROUP BY
           p.author_id
-      ) a
-      INNER JOIN users u ON u.id = a.author_id
+      ) a ON u.id = a.author_id
   ),
   total_follows AS (
     SELECT
@@ -402,8 +445,14 @@ WITH
   )
 SELECT
   total_interactions.id, total_interactions.name, total_interactions.email, total_interactions.image, total_interactions.bio, total_interactions.created_at, total_interactions.updated_at, total_interactions.total_posts, total_interactions.total_upvoted, total_interactions.total_downvoted,
-  total_follows.follower,
-  total_follows.following
+  CASE
+    WHEN total_follows.follower IS NULL THEN 0
+    ELSE total_follows.follower
+  END::INTEGER AS follower,
+  CASE
+    WHEN total_follows.following IS NULL THEN 0
+    ELSE total_follows.following
+  END::INTEGER AS "following"
 FROM
   total_interactions
   LEFT JOIN total_follows ON total_interactions.id = total_follows.author_id
@@ -417,15 +466,15 @@ type GetUserOverviewRow struct {
 	Bio            sql.NullString
 	CreatedAt      time.Time
 	UpdatedAt      time.Time
-	TotalPosts     int64
-	TotalUpvoted   int64
-	TotalDownvoted int64
-	Follower       sql.NullInt64
-	Following      sql.NullInt64
+	TotalPosts     int32
+	TotalUpvoted   int32
+	TotalDownvoted int32
+	Follower       int32
+	Following      int32
 }
 
-func (q *Queries) GetUserOverview(ctx context.Context, authorID uuid.UUID) (GetUserOverviewRow, error) {
-	row := q.db.QueryRowContext(ctx, getUserOverview, authorID)
+func (q *Queries) GetUserOverview(ctx context.Context, id uuid.UUID) (GetUserOverviewRow, error) {
+	row := q.db.QueryRowContext(ctx, getUserOverview, id)
 	var i GetUserOverviewRow
 	err := row.Scan(
 		&i.ID,
