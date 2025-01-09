@@ -431,7 +431,7 @@ WITH
         GROUP BY
           author_id
       ) fr
-      JOIN (
+      FULL OUTER JOIN (
         SELECT
           follower_id,
           COUNT(id) AS "following"

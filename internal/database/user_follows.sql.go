@@ -241,9 +241,9 @@ SELECT
   ap.id, ap.title, ap.content, ap.author_id, ap.up_voted, ap.down_voted, ap.comments_count, ap.created_at, ap.updated_at, ap.author_email, ap.author_name, ap.author_image,
   ap.up_voted + ap.down_voted + ap.comments_count AS total_interactions,
   CASE
-    WHEN uf.id IS NOT NULL THEN 'Followed'
-    ELSE 'Recommend'
-  END AS status
+    WHEN uf.id IS NOT NULL THEN 1
+    ELSE 0
+  END AS priority
 FROM
   (
     SELECT
@@ -264,7 +264,7 @@ FROM
       user_follows.follower_id = $1
   ) uf ON ap.author_id = uf.author_id
 ORDER BY
-  status ASC,
+  priority DESC,
   total_interactions DESC
 LIMIT
   $2
@@ -292,7 +292,7 @@ type GetHotFollowedPostsRow struct {
 	AuthorName        sql.NullString
 	AuthorImage       sql.NullString
 	TotalInteractions int32
-	Status            string
+	Priority          int32
 }
 
 func (q *Queries) GetHotFollowedPosts(ctx context.Context, arg GetHotFollowedPostsParams) ([]GetHotFollowedPostsRow, error) {
@@ -318,7 +318,7 @@ func (q *Queries) GetHotFollowedPosts(ctx context.Context, arg GetHotFollowedPos
 			&i.AuthorName,
 			&i.AuthorImage,
 			&i.TotalInteractions,
-			&i.Status,
+			&i.Priority,
 		); err != nil {
 			return nil, err
 		}
@@ -337,9 +337,9 @@ const getNewFollowedPosts = `-- name: GetNewFollowedPosts :many
 SELECT
   ap.id, ap.title, ap.content, ap.author_id, ap.up_voted, ap.down_voted, ap.comments_count, ap.created_at, ap.updated_at, ap.author_email, ap.author_name, ap.author_image,
   CASE
-    WHEN uf.id IS NOT NULL THEN 'Followed'
-    ELSE 'Recommend'
-  END AS status
+    WHEN uf.id IS NOT NULL THEN 1
+    ELSE 0
+  END AS priority
 FROM
   (
     SELECT
@@ -355,12 +355,12 @@ FROM
     SELECT
       id, follower_id, author_id, created_at
     FROM
-      user_follows
+      user_follows f
     WHERE
-      user_follows.follower_id = $1
+      f.follower_id = $1
   ) uf ON ap.author_id = uf.author_id
 ORDER BY
-  status ASC,
+  priority DESC,
   ap.created_at DESC
 LIMIT
   $2
@@ -387,7 +387,7 @@ type GetNewFollowedPostsRow struct {
 	AuthorEmail   sql.NullString
 	AuthorName    sql.NullString
 	AuthorImage   sql.NullString
-	Status        string
+	Priority      int32
 }
 
 func (q *Queries) GetNewFollowedPosts(ctx context.Context, arg GetNewFollowedPostsParams) ([]GetNewFollowedPostsRow, error) {
@@ -412,7 +412,7 @@ func (q *Queries) GetNewFollowedPosts(ctx context.Context, arg GetNewFollowedPos
 			&i.AuthorEmail,
 			&i.AuthorName,
 			&i.AuthorImage,
-			&i.Status,
+			&i.Priority,
 		); err != nil {
 			return nil, err
 		}
@@ -431,9 +431,9 @@ const getTopFollowedPosts = `-- name: GetTopFollowedPosts :many
 SELECT
   ap.id, ap.title, ap.content, ap.author_id, ap.up_voted, ap.down_voted, ap.comments_count, ap.created_at, ap.updated_at, ap.author_email, ap.author_name, ap.author_image,
   CASE
-    WHEN uf.id IS NOT NULL THEN 'Followed'
-    ELSE 'Recommend'
-  END AS status
+    WHEN uf.id IS NOT NULL THEN 1
+    ELSE 0
+  END AS priority
 FROM
   (
     SELECT
@@ -454,7 +454,7 @@ FROM
       user_follows.follower_id = $1
   ) uf ON ap.author_id = uf.author_id
 ORDER BY
-  status ASC,
+  priority DESC,
   ap.up_voted DESC
 LIMIT
   $2
@@ -481,7 +481,7 @@ type GetTopFollowedPostsRow struct {
 	AuthorEmail   sql.NullString
 	AuthorName    sql.NullString
 	AuthorImage   sql.NullString
-	Status        string
+	Priority      int32
 }
 
 func (q *Queries) GetTopFollowedPosts(ctx context.Context, arg GetTopFollowedPostsParams) ([]GetTopFollowedPostsRow, error) {
@@ -506,7 +506,7 @@ func (q *Queries) GetTopFollowedPosts(ctx context.Context, arg GetTopFollowedPos
 			&i.AuthorEmail,
 			&i.AuthorName,
 			&i.AuthorImage,
-			&i.Status,
+			&i.Priority,
 		); err != nil {
 			return nil, err
 		}

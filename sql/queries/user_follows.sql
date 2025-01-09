@@ -59,9 +59,9 @@ OFFSET
 SELECT
   ap.*,
   CASE
-    WHEN uf.id IS NOT NULL THEN 'Followed'
-    ELSE 'Recommend'
-  END AS status
+    WHEN uf.id IS NOT NULL THEN 1
+    ELSE 0
+  END AS priority
 FROM
   (
     SELECT
@@ -77,12 +77,12 @@ FROM
     SELECT
       *
     FROM
-      user_follows
+      user_follows f
     WHERE
-      user_follows.follower_id = $1
+      f.follower_id = $1
   ) uf ON ap.author_id = uf.author_id
 ORDER BY
-  status ASC,
+  priority DESC,
   ap.created_at DESC
 LIMIT
   $2
@@ -94,9 +94,9 @@ OFFSET
 SELECT
   ap.*,
   CASE
-    WHEN uf.id IS NOT NULL THEN 'Followed'
-    ELSE 'Recommend'
-  END AS status
+    WHEN uf.id IS NOT NULL THEN 1
+    ELSE 0
+  END AS priority
 FROM
   (
     SELECT
@@ -117,7 +117,7 @@ FROM
       user_follows.follower_id = $1
   ) uf ON ap.author_id = uf.author_id
 ORDER BY
-  status ASC,
+  priority DESC,
   ap.up_voted DESC
 LIMIT
   $2
@@ -130,9 +130,9 @@ SELECT
   ap.*,
   ap.up_voted + ap.down_voted + ap.comments_count AS total_interactions,
   CASE
-    WHEN uf.id IS NOT NULL THEN 'Followed'
-    ELSE 'Recommend'
-  END AS status
+    WHEN uf.id IS NOT NULL THEN 1
+    ELSE 0
+  END AS priority
 FROM
   (
     SELECT
@@ -153,7 +153,7 @@ FROM
       user_follows.follower_id = $1
   ) uf ON ap.author_id = uf.author_id
 ORDER BY
-  status ASC,
+  priority DESC,
   total_interactions DESC
 LIMIT
   $2
