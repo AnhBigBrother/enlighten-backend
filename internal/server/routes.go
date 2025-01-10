@@ -81,8 +81,8 @@ func RegisterRoutes() http.Handler {
 		MaxAge:           300,
 	})
 
-	stack := middleware.CreateStack(corsMiddleware.Handler, middleware.Auth)
-	// stack := middleware.CreateStack(corsMiddleware.Handler, middleware.Logging, middleware.Auth)
+	// stack := middleware.CreateStack(corsMiddleware.Handler, middleware.Auth)
+	stack := middleware.CreateStack(corsMiddleware.Handler, middleware.Logging, middleware.Auth)
 
 	return stack(router)
 }

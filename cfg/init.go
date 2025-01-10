@@ -1,11 +1,11 @@
 package cfg
 
 import (
-	"database/sql"
+	"context"
 	"log"
 	"os"
 
-	_ "github.com/lib/pq"
+	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/AnhBigBrother/enlighten-backend/internal/database"
 	"github.com/joho/godotenv"
@@ -18,7 +18,7 @@ type contextKeys struct {
 }
 
 var (
-	DBConnection    *sql.DB
+	DBConnection    *pgxpool.Pool
 	DBQueries       *database.Queries
 	DbUri           string
 	FrontendUrl     string
@@ -100,7 +100,7 @@ func init() {
 	// 	log.Fatal("some of variables is not found in the environment: DISCORD_CLIENT_ID, DISCORD_CLIENT_SECRET, DISCORD_CALLBACK_URL")
 	// }
 
-	conn, err := sql.Open("postgres", dbUri)
+	conn, err := pgxpool.New(context.Background(), dbUri)
 	if err != nil {
 		log.Fatal("Cannot connect to database")
 		log.Println(err)

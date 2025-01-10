@@ -7,10 +7,8 @@ package database
 
 import (
 	"context"
-	"database/sql"
-	"time"
 
-	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const createComment = `-- name: CreateComment :one
@@ -30,16 +28,16 @@ RETURNING
 `
 
 type CreateCommentParams struct {
-	ID              uuid.UUID
-	Comment         string
-	AuthorID        uuid.UUID
-	PostID          uuid.UUID
-	ParentCommentID uuid.NullUUID
-	CreatedAt       time.Time
+	ID              pgtype.UUID      `json:"id"`
+	Comment         string           `json:"comment"`
+	AuthorID        pgtype.UUID      `json:"author_id"`
+	PostID          pgtype.UUID      `json:"post_id"`
+	ParentCommentID pgtype.UUID      `json:"parent_comment_id"`
+	CreatedAt       pgtype.Timestamp `json:"created_at"`
 }
 
 func (q *Queries) CreateComment(ctx context.Context, arg CreateCommentParams) (Comment, error) {
-	row := q.db.QueryRowContext(ctx, createComment,
+	row := q.db.QueryRow(ctx, createComment,
 		arg.ID,
 		arg.Comment,
 		arg.AuthorID,
@@ -87,28 +85,28 @@ FROM
 `
 
 type GetCommentsRepliesParams struct {
-	PostID          uuid.UUID
-	ParentCommentID uuid.NullUUID
-	Limit           int32
-	Offset          int32
+	PostID          pgtype.UUID `json:"post_id"`
+	ParentCommentID pgtype.UUID `json:"parent_comment_id"`
+	Limit           int32       `json:"limit"`
+	Offset          int32       `json:"offset"`
 }
 
 type GetCommentsRepliesRow struct {
-	ID              uuid.UUID
-	Comment         string
-	AuthorID        uuid.UUID
-	PostID          uuid.UUID
-	ParentCommentID uuid.NullUUID
-	UpVoted         int32
-	DownVoted       int32
-	CreatedAt       time.Time
-	UserEmail       sql.NullString
-	UserName        sql.NullString
-	UserImage       sql.NullString
+	ID              pgtype.UUID      `json:"id"`
+	Comment         string           `json:"comment"`
+	AuthorID        pgtype.UUID      `json:"author_id"`
+	PostID          pgtype.UUID      `json:"post_id"`
+	ParentCommentID pgtype.UUID      `json:"parent_comment_id"`
+	UpVoted         int32            `json:"up_voted"`
+	DownVoted       int32            `json:"down_voted"`
+	CreatedAt       pgtype.Timestamp `json:"created_at"`
+	UserEmail       pgtype.Text      `json:"user_email"`
+	UserName        pgtype.Text      `json:"user_name"`
+	UserImage       pgtype.Text      `json:"user_image"`
 }
 
 func (q *Queries) GetCommentsReplies(ctx context.Context, arg GetCommentsRepliesParams) ([]GetCommentsRepliesRow, error) {
-	rows, err := q.db.QueryContext(ctx, getCommentsReplies,
+	rows, err := q.db.Query(ctx, getCommentsReplies,
 		arg.PostID,
 		arg.ParentCommentID,
 		arg.Limit,
@@ -118,7 +116,7 @@ func (q *Queries) GetCommentsReplies(ctx context.Context, arg GetCommentsReplies
 		return nil, err
 	}
 	defer rows.Close()
-	var items []GetCommentsRepliesRow
+	items := []GetCommentsRepliesRow{}
 	for rows.Next() {
 		var i GetCommentsRepliesRow
 		if err := rows.Scan(
@@ -137,9 +135,6 @@ func (q *Queries) GetCommentsReplies(ctx context.Context, arg GetCommentsReplies
 			return nil, err
 		}
 		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err
@@ -175,32 +170,32 @@ ORDER BY
 `
 
 type GetPostCommentsParams struct {
-	PostID uuid.UUID
-	Limit  int32
-	Offset int32
+	PostID pgtype.UUID `json:"post_id"`
+	Limit  int32       `json:"limit"`
+	Offset int32       `json:"offset"`
 }
 
 type GetPostCommentsRow struct {
-	ID              uuid.UUID
-	Comment         string
-	AuthorID        uuid.UUID
-	PostID          uuid.UUID
-	ParentCommentID uuid.NullUUID
-	UpVoted         int32
-	DownVoted       int32
-	CreatedAt       time.Time
-	AuthorEmail     sql.NullString
-	AuthorName      sql.NullString
-	AuthorImage     sql.NullString
+	ID              pgtype.UUID      `json:"id"`
+	Comment         string           `json:"comment"`
+	AuthorID        pgtype.UUID      `json:"author_id"`
+	PostID          pgtype.UUID      `json:"post_id"`
+	ParentCommentID pgtype.UUID      `json:"parent_comment_id"`
+	UpVoted         int32            `json:"up_voted"`
+	DownVoted       int32            `json:"down_voted"`
+	CreatedAt       pgtype.Timestamp `json:"created_at"`
+	AuthorEmail     pgtype.Text      `json:"author_email"`
+	AuthorName      pgtype.Text      `json:"author_name"`
+	AuthorImage     pgtype.Text      `json:"author_image"`
 }
 
 func (q *Queries) GetPostComments(ctx context.Context, arg GetPostCommentsParams) ([]GetPostCommentsRow, error) {
-	rows, err := q.db.QueryContext(ctx, getPostComments, arg.PostID, arg.Limit, arg.Offset)
+	rows, err := q.db.Query(ctx, getPostComments, arg.PostID, arg.Limit, arg.Offset)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []GetPostCommentsRow
+	items := []GetPostCommentsRow{}
 	for rows.Next() {
 		var i GetPostCommentsRow
 		if err := rows.Scan(
@@ -219,9 +214,6 @@ func (q *Queries) GetPostComments(ctx context.Context, arg GetPostCommentsParams
 			return nil, err
 		}
 		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err

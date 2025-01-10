@@ -7,9 +7,8 @@ package database
 
 import (
 	"context"
-	"time"
 
-	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const changeVotePost = `-- name: ChangeVotePost :exec
@@ -23,8 +22,8 @@ WHERE
   id = $1
 `
 
-func (q *Queries) ChangeVotePost(ctx context.Context, id uuid.UUID) error {
-	_, err := q.db.ExecContext(ctx, changeVotePost, id)
+func (q *Queries) ChangeVotePost(ctx context.Context, id pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, changeVotePost, id)
 	return err
 }
 
@@ -42,15 +41,15 @@ VALUES
 `
 
 type CreateVotePostParams struct {
-	VoterID   uuid.UUID
-	PostID    uuid.UUID
-	ID        uuid.UUID
-	Voted     Voted
-	CreatedAt time.Time
+	VoterID   pgtype.UUID      `json:"voter_id"`
+	PostID    pgtype.UUID      `json:"post_id"`
+	ID        pgtype.UUID      `json:"id"`
+	Voted     Voted            `json:"voted"`
+	CreatedAt pgtype.Timestamp `json:"created_at"`
 }
 
 func (q *Queries) CreateVotePost(ctx context.Context, arg CreateVotePostParams) error {
-	_, err := q.db.ExecContext(ctx, createVotePost,
+	_, err := q.db.Exec(ctx, createVotePost,
 		arg.VoterID,
 		arg.PostID,
 		arg.ID,
@@ -69,8 +68,8 @@ WHERE
   AND down_voted > 0
 `
 
-func (q *Queries) DecrePostDownVoted(ctx context.Context, id uuid.UUID) error {
-	_, err := q.db.ExecContext(ctx, decrePostDownVoted, id)
+func (q *Queries) DecrePostDownVoted(ctx context.Context, id pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, decrePostDownVoted, id)
 	return err
 }
 
@@ -83,8 +82,8 @@ WHERE
   AND up_voted > 0
 `
 
-func (q *Queries) DecrePostUpVoted(ctx context.Context, id uuid.UUID) error {
-	_, err := q.db.ExecContext(ctx, decrePostUpVoted, id)
+func (q *Queries) DecrePostUpVoted(ctx context.Context, id pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, decrePostUpVoted, id)
 	return err
 }
 
@@ -94,8 +93,8 @@ WHERE
   id = $1
 `
 
-func (q *Queries) DeleteVotePost(ctx context.Context, id uuid.UUID) error {
-	_, err := q.db.ExecContext(ctx, deleteVotePost, id)
+func (q *Queries) DeleteVotePost(ctx context.Context, id pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, deleteVotePost, id)
 	return err
 }
 
@@ -110,12 +109,12 @@ WHERE
 `
 
 type FindPostVoteParams struct {
-	VoterID uuid.UUID
-	PostID  uuid.UUID
+	VoterID pgtype.UUID `json:"voter_id"`
+	PostID  pgtype.UUID `json:"post_id"`
 }
 
 func (q *Queries) FindPostVote(ctx context.Context, arg FindPostVoteParams) (PostVote, error) {
-	row := q.db.QueryRowContext(ctx, findPostVote, arg.VoterID, arg.PostID)
+	row := q.db.QueryRow(ctx, findPostVote, arg.VoterID, arg.PostID)
 	var i PostVote
 	err := row.Scan(
 		&i.ID,
@@ -135,8 +134,8 @@ WHERE
   id = $1
 `
 
-func (q *Queries) IncrePostDownVoted(ctx context.Context, id uuid.UUID) error {
-	_, err := q.db.ExecContext(ctx, increPostDownVoted, id)
+func (q *Queries) IncrePostDownVoted(ctx context.Context, id pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, increPostDownVoted, id)
 	return err
 }
 
@@ -148,7 +147,7 @@ WHERE
   id = $1
 `
 
-func (q *Queries) IncrePostUpVoted(ctx context.Context, id uuid.UUID) error {
-	_, err := q.db.ExecContext(ctx, increPostUpVoted, id)
+func (q *Queries) IncrePostUpVoted(ctx context.Context, id pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, increPostUpVoted, id)
 	return err
 }

@@ -241,10 +241,10 @@ WITH
       p.author_id
   )
 SELECT
-  u.id AS author_id,
-  u.name AS author_name,
-  u.email AS author_email,
-  u.image AS author_image,
+  u.id,
+  u.name,
+  u.email,
+  u.image,
   CASE
     WHEN a.total_posts IS NULL THEN 0
     ELSE a.total_posts

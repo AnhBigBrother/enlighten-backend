@@ -5,12 +5,10 @@
 package database
 
 import (
-	"database/sql"
 	"database/sql/driver"
 	"fmt"
-	"time"
 
-	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 type Voted string
@@ -33,8 +31,8 @@ func (e *Voted) Scan(src interface{}) error {
 }
 
 type NullVoted struct {
-	Voted Voted
-	Valid bool // Valid is true if Voted is not NULL
+	Voted Voted `json:"voted"`
+	Valid bool  `json:"valid"` // Valid is true if Voted is not NULL
 }
 
 // Scan implements the Scanner interface.
@@ -56,59 +54,59 @@ func (ns NullVoted) Value() (driver.Value, error) {
 }
 
 type Comment struct {
-	ID              uuid.UUID
-	Comment         string
-	AuthorID        uuid.UUID
-	PostID          uuid.UUID
-	ParentCommentID uuid.NullUUID
-	UpVoted         int32
-	DownVoted       int32
-	CreatedAt       time.Time
+	ID              pgtype.UUID      `json:"id"`
+	Comment         string           `json:"comment"`
+	AuthorID        pgtype.UUID      `json:"author_id"`
+	PostID          pgtype.UUID      `json:"post_id"`
+	ParentCommentID pgtype.UUID      `json:"parent_comment_id"`
+	UpVoted         int32            `json:"up_voted"`
+	DownVoted       int32            `json:"down_voted"`
+	CreatedAt       pgtype.Timestamp `json:"created_at"`
 }
 
 type CommentVote struct {
-	ID        uuid.UUID
-	Voted     Voted
-	VoterID   uuid.UUID
-	CommentID uuid.UUID
-	CreatedAt time.Time
+	ID        pgtype.UUID      `json:"id"`
+	Voted     Voted            `json:"voted"`
+	VoterID   pgtype.UUID      `json:"voter_id"`
+	CommentID pgtype.UUID      `json:"comment_id"`
+	CreatedAt pgtype.Timestamp `json:"created_at"`
 }
 
 type Post struct {
-	ID            uuid.UUID
-	Title         string
-	Content       string
-	AuthorID      uuid.UUID
-	UpVoted       int32
-	DownVoted     int32
-	CommentsCount int32
-	CreatedAt     time.Time
-	UpdatedAt     time.Time
+	ID            pgtype.UUID      `json:"id"`
+	Title         string           `json:"title"`
+	Content       string           `json:"content"`
+	AuthorID      pgtype.UUID      `json:"author_id"`
+	UpVoted       int32            `json:"up_voted"`
+	DownVoted     int32            `json:"down_voted"`
+	CommentsCount int32            `json:"comments_count"`
+	CreatedAt     pgtype.Timestamp `json:"created_at"`
+	UpdatedAt     pgtype.Timestamp `json:"updated_at"`
 }
 
 type PostVote struct {
-	ID        uuid.UUID
-	Voted     Voted
-	VoterID   uuid.UUID
-	PostID    uuid.UUID
-	CreatedAt time.Time
+	ID        pgtype.UUID      `json:"id"`
+	Voted     Voted            `json:"voted"`
+	VoterID   pgtype.UUID      `json:"voter_id"`
+	PostID    pgtype.UUID      `json:"post_id"`
+	CreatedAt pgtype.Timestamp `json:"created_at"`
 }
 
 type User struct {
-	ID           uuid.UUID
-	Email        string
-	Name         string
-	Password     string
-	Image        sql.NullString
-	RefreshToken sql.NullString
-	CreatedAt    time.Time
-	UpdatedAt    time.Time
-	Bio          sql.NullString
+	ID           pgtype.UUID      `json:"id"`
+	Email        string           `json:"email"`
+	Name         string           `json:"name"`
+	Password     string           `json:"password"`
+	Image        pgtype.Text      `json:"image"`
+	RefreshToken pgtype.Text      `json:"refresh_token"`
+	CreatedAt    pgtype.Timestamp `json:"created_at"`
+	UpdatedAt    pgtype.Timestamp `json:"updated_at"`
+	Bio          pgtype.Text      `json:"bio"`
 }
 
 type UserFollow struct {
-	ID         uuid.UUID
-	FollowerID uuid.UUID
-	AuthorID   uuid.UUID
-	CreatedAt  time.Time
+	ID         pgtype.UUID      `json:"id"`
+	FollowerID pgtype.UUID      `json:"follower_id"`
+	AuthorID   pgtype.UUID      `json:"author_id"`
+	CreatedAt  pgtype.Timestamp `json:"created_at"`
 }

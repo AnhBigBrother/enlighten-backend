@@ -6,10 +6,10 @@ import (
 
 	"github.com/AnhBigBrother/enlighten-backend/cfg"
 	"github.com/AnhBigBrother/enlighten-backend/internal/database"
-	"github.com/AnhBigBrother/enlighten-backend/internal/models"
 	"github.com/AnhBigBrother/enlighten-backend/pkg/parser"
 	"github.com/AnhBigBrother/enlighten-backend/pkg/resp"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 type CommentsHandler struct {
@@ -46,20 +46,22 @@ func (commentsHandler *CommentsHandler) GetCommentReplies(w http.ResponseWriter,
 		return
 	}
 	replies, err := commentsHandler.DB.GetCommentsReplies(r.Context(), database.GetCommentsRepliesParams{
-		PostID:          postUUID,
-		ParentCommentID: uuid.NullUUID{UUID: parentCommentUUID, Valid: true},
-		Limit:           int32(limit),
-		Offset:          int32(offset),
+		PostID: pgtype.UUID{
+			Bytes: postUUID,
+			Valid: true,
+		},
+		ParentCommentID: pgtype.UUID{
+			Bytes: parentCommentUUID,
+			Valid: true,
+		},
+		Limit:  int32(limit),
+		Offset: int32(offset),
 	})
 	if err != nil {
 		resp.Err(w, 404, err.Error())
 		return
 	}
-	ret := []models.Comment{}
-	for _, rep := range replies {
-		ret = append(ret, models.FormatDatabaseGetCommentsRepliesRow(rep))
-	}
-	resp.Json(w, 200, ret)
+	resp.Json(w, 200, replies)
 }
 
 func (commentsHandler *CommentsHandler) UpVoteComment(w http.ResponseWriter, r *http.Request) {
@@ -76,7 +78,7 @@ func (commentsHandler *CommentsHandler) UpVoteComment(w http.ResponseWriter, r *
 		resp.Err(w, 400, err.Error())
 		return
 	}
-	err = commentsHandler.DB.VoteComment(r.Context(), cfg.DBConnection, authorUuid, commentUUID, "up")
+	err = commentsHandler.DB.VoteComment(r.Context(), cfg.DBConnection, pgtype.UUID{Bytes: authorUuid, Valid: true}, pgtype.UUID{Bytes: commentUUID, Valid: true}, "up")
 	if err != nil {
 		resp.Err(w, 400, err.Error())
 		return
@@ -100,7 +102,7 @@ func (commentsHandler *CommentsHandler) DownVoteComment(w http.ResponseWriter, r
 		resp.Err(w, 400, err.Error())
 		return
 	}
-	err = commentsHandler.DB.VoteComment(r.Context(), cfg.DBConnection, authorUuid, commentUUID, "down")
+	err = commentsHandler.DB.VoteComment(r.Context(), cfg.DBConnection, pgtype.UUID{Bytes: authorUuid, Valid: true}, pgtype.UUID{Bytes: commentUUID, Valid: true}, "down")
 	if err != nil {
 		resp.Err(w, 400, err.Error())
 		return
@@ -125,8 +127,8 @@ func (commentsHandler *CommentsHandler) CheckVoted(w http.ResponseWriter, r *htt
 		return
 	}
 	cv, err := commentsHandler.DB.GetCommentVotes(r.Context(), database.GetCommentVotesParams{
-		CommentID: commentUUID,
-		VoterID:   authorUuid,
+		CommentID: pgtype.UUID{Bytes: commentUUID, Valid: true},
+		VoterID:   pgtype.UUID{Bytes: authorUuid, Valid: true},
 	})
 	if err != nil {
 		resp.Json(w, 200, struct {
@@ -171,17 +173,10 @@ func (commentsHandler *CommentsHandler) ReplyComment(w http.ResponseWriter, r *h
 		resp.Err(w, 400, "reply is required")
 		return
 	}
-	com, err := commentsHandler.DB.AddComment(r.Context(), cfg.DBConnection, params.Reply, authorUuid, postUUID, uuid.NullUUID{UUID: parentCommentUUID, Valid: true})
+	comment, err := commentsHandler.DB.AddComment(r.Context(), cfg.DBConnection, params.Reply, pgtype.UUID{Bytes: authorUuid, Valid: true}, pgtype.UUID{Bytes: postUUID, Valid: true}, pgtype.UUID{Bytes: parentCommentUUID, Valid: true})
 	if err != nil {
 		resp.Err(w, 400, "reply is required")
 		return
 	}
-	resp.Json(w, 201, models.Comment{
-		ID:              com.ID,
-		Comment:         com.Comment,
-		AuthorId:        com.AuthorID,
-		PostID:          com.PostID,
-		ParentCommentID: com.ParentCommentID,
-		CreatedAt:       com.CreatedAt,
-	})
+	resp.Json(w, 201, comment)
 }

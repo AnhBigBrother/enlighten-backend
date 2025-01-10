@@ -2,18 +2,19 @@ package database
 
 import (
 	"context"
-	"database/sql"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-func (q *Queries) VoteComment(ctx context.Context, db *sql.DB, voter_id, comment_id uuid.UUID, vote string) error {
-	tx, err := db.Begin()
+func (q *Queries) VoteComment(ctx context.Context, conn *pgxpool.Pool, voter_id, comment_id pgtype.UUID, vote string) error {
+	tx, err := conn.Begin(ctx)
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback()
+	defer tx.Rollback(ctx)
 
 	qtx := q.WithTx(tx)
 	vc, err := qtx.FindCommentVote(ctx, FindCommentVoteParams{
@@ -25,9 +26,16 @@ func (q *Queries) VoteComment(ctx context.Context, db *sql.DB, voter_id, comment
 		err = qtx.CreateVoteComment(ctx, CreateVoteCommentParams{
 			VoterID:   voter_id,
 			CommentID: comment_id,
-			ID:        uuid.New(),
-			Voted:     Voted(vote),
-			CreatedAt: time.Now(),
+			ID: pgtype.UUID{
+				Bytes: uuid.New(),
+				Valid: true,
+			},
+			Voted: Voted(vote),
+			CreatedAt: pgtype.Timestamp{
+				Time:             time.Now(),
+				InfinityModifier: pgtype.Finite,
+				Valid:            true,
+			},
 		})
 		if err != nil {
 			return err
@@ -44,7 +52,7 @@ func (q *Queries) VoteComment(ctx context.Context, db *sql.DB, voter_id, comment
 			}
 		}
 
-		return tx.Commit()
+		return tx.Commit(ctx)
 	}
 
 	if vc.Voted == Voted(vote) {
@@ -63,7 +71,7 @@ func (q *Queries) VoteComment(ctx context.Context, db *sql.DB, voter_id, comment
 				return err
 			}
 		}
-		return tx.Commit()
+		return tx.Commit(ctx)
 	}
 
 	err = qtx.ChangeVoteComment(ctx, vc.ID)
@@ -91,15 +99,15 @@ func (q *Queries) VoteComment(ctx context.Context, db *sql.DB, voter_id, comment
 		}
 	}
 
-	return tx.Commit()
+	return tx.Commit(ctx)
 }
 
-func (q *Queries) VotePost(ctx context.Context, db *sql.DB, voter_id, post_id uuid.UUID, vote string) error {
-	tx, err := db.Begin()
+func (q *Queries) VotePost(ctx context.Context, conn *pgxpool.Pool, voter_id, post_id pgtype.UUID, vote string) error {
+	tx, err := conn.Begin(ctx)
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback()
+	defer tx.Rollback(ctx)
 
 	qtx := q.WithTx(tx)
 	vp, err := qtx.FindPostVote(ctx, FindPostVoteParams{
@@ -109,11 +117,18 @@ func (q *Queries) VotePost(ctx context.Context, db *sql.DB, voter_id, post_id uu
 
 	if err != nil {
 		err = qtx.CreateVotePost(ctx, CreateVotePostParams{
-			VoterID:   voter_id,
-			PostID:    post_id,
-			ID:        uuid.New(),
-			Voted:     Voted(vote),
-			CreatedAt: time.Now(),
+			VoterID: voter_id,
+			PostID:  post_id,
+			ID: pgtype.UUID{
+				Bytes: uuid.New(),
+				Valid: true,
+			},
+			Voted: Voted(vote),
+			CreatedAt: pgtype.Timestamp{
+				Time:             time.Now(),
+				InfinityModifier: pgtype.Finite,
+				Valid:            true,
+			},
 		})
 		if err != nil {
 			return err
@@ -130,7 +145,7 @@ func (q *Queries) VotePost(ctx context.Context, db *sql.DB, voter_id, post_id uu
 			}
 		}
 
-		return tx.Commit()
+		return tx.Commit(ctx)
 	}
 
 	if vp.Voted == Voted(vote) {
@@ -149,7 +164,7 @@ func (q *Queries) VotePost(ctx context.Context, db *sql.DB, voter_id, post_id uu
 				return err
 			}
 		}
-		return tx.Commit()
+		return tx.Commit(ctx)
 	}
 
 	err = qtx.ChangeVotePost(ctx, vp.ID)
@@ -177,24 +192,31 @@ func (q *Queries) VotePost(ctx context.Context, db *sql.DB, voter_id, post_id uu
 		}
 	}
 
-	return tx.Commit()
+	return tx.Commit(ctx)
 }
 
-func (q *Queries) AddComment(ctx context.Context, db *sql.DB, comment string, author_id, post_id uuid.UUID, parent_comment_id uuid.NullUUID) (Comment, error) {
-	tx, err := db.Begin()
+func (q *Queries) AddComment(ctx context.Context, conn *pgxpool.Pool, comment string, author_id, post_id, parent_comment_id pgtype.UUID) (Comment, error) {
+	tx, err := conn.Begin(ctx)
 	if err != nil {
 		return Comment{}, err
 	}
-	defer tx.Rollback()
+	defer tx.Rollback(ctx)
 
 	qtx := q.WithTx(tx)
 	comm, err := qtx.CreateComment(ctx, CreateCommentParams{
-		ID:              uuid.New(),
+		ID: pgtype.UUID{
+			Bytes: uuid.New(),
+			Valid: true,
+		},
 		Comment:         comment,
 		AuthorID:        author_id,
 		PostID:          post_id,
 		ParentCommentID: parent_comment_id,
-		CreatedAt:       time.Now(),
+		CreatedAt: pgtype.Timestamp{
+			Time:             time.Now(),
+			InfinityModifier: pgtype.Finite,
+			Valid:            true,
+		},
 	})
 	if err != nil {
 		return Comment{}, err
@@ -204,5 +226,5 @@ func (q *Queries) AddComment(ctx context.Context, db *sql.DB, comment string, au
 		return Comment{}, err
 	}
 
-	return comm, tx.Commit()
+	return comm, tx.Commit(ctx)
 }

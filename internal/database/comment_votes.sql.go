@@ -7,9 +7,8 @@ package database
 
 import (
 	"context"
-	"time"
 
-	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const changeVoteComment = `-- name: ChangeVoteComment :exec
@@ -23,8 +22,8 @@ WHERE
   id = $1
 `
 
-func (q *Queries) ChangeVoteComment(ctx context.Context, id uuid.UUID) error {
-	_, err := q.db.ExecContext(ctx, changeVoteComment, id)
+func (q *Queries) ChangeVoteComment(ctx context.Context, id pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, changeVoteComment, id)
 	return err
 }
 
@@ -42,15 +41,15 @@ VALUES
 `
 
 type CreateVoteCommentParams struct {
-	VoterID   uuid.UUID
-	CommentID uuid.UUID
-	ID        uuid.UUID
-	Voted     Voted
-	CreatedAt time.Time
+	VoterID   pgtype.UUID      `json:"voter_id"`
+	CommentID pgtype.UUID      `json:"comment_id"`
+	ID        pgtype.UUID      `json:"id"`
+	Voted     Voted            `json:"voted"`
+	CreatedAt pgtype.Timestamp `json:"created_at"`
 }
 
 func (q *Queries) CreateVoteComment(ctx context.Context, arg CreateVoteCommentParams) error {
-	_, err := q.db.ExecContext(ctx, createVoteComment,
+	_, err := q.db.Exec(ctx, createVoteComment,
 		arg.VoterID,
 		arg.CommentID,
 		arg.ID,
@@ -69,8 +68,8 @@ WHERE
   AND down_voted > 0
 `
 
-func (q *Queries) DecreCommentDownVoted(ctx context.Context, id uuid.UUID) error {
-	_, err := q.db.ExecContext(ctx, decreCommentDownVoted, id)
+func (q *Queries) DecreCommentDownVoted(ctx context.Context, id pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, decreCommentDownVoted, id)
 	return err
 }
 
@@ -83,8 +82,8 @@ WHERE
   AND up_voted > 0
 `
 
-func (q *Queries) DecreCommentUpVoted(ctx context.Context, id uuid.UUID) error {
-	_, err := q.db.ExecContext(ctx, decreCommentUpVoted, id)
+func (q *Queries) DecreCommentUpVoted(ctx context.Context, id pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, decreCommentUpVoted, id)
 	return err
 }
 
@@ -94,8 +93,8 @@ WHERE
   id = $1
 `
 
-func (q *Queries) DeleteVoteComment(ctx context.Context, id uuid.UUID) error {
-	_, err := q.db.ExecContext(ctx, deleteVoteComment, id)
+func (q *Queries) DeleteVoteComment(ctx context.Context, id pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, deleteVoteComment, id)
 	return err
 }
 
@@ -110,12 +109,12 @@ WHERE
 `
 
 type FindCommentVoteParams struct {
-	VoterID   uuid.UUID
-	CommentID uuid.UUID
+	VoterID   pgtype.UUID `json:"voter_id"`
+	CommentID pgtype.UUID `json:"comment_id"`
 }
 
 func (q *Queries) FindCommentVote(ctx context.Context, arg FindCommentVoteParams) (CommentVote, error) {
-	row := q.db.QueryRowContext(ctx, findCommentVote, arg.VoterID, arg.CommentID)
+	row := q.db.QueryRow(ctx, findCommentVote, arg.VoterID, arg.CommentID)
 	var i CommentVote
 	err := row.Scan(
 		&i.ID,
@@ -140,12 +139,12 @@ LIMIT
 `
 
 type GetCommentVotesParams struct {
-	CommentID uuid.UUID
-	VoterID   uuid.UUID
+	CommentID pgtype.UUID `json:"comment_id"`
+	VoterID   pgtype.UUID `json:"voter_id"`
 }
 
 func (q *Queries) GetCommentVotes(ctx context.Context, arg GetCommentVotesParams) (CommentVote, error) {
-	row := q.db.QueryRowContext(ctx, getCommentVotes, arg.CommentID, arg.VoterID)
+	row := q.db.QueryRow(ctx, getCommentVotes, arg.CommentID, arg.VoterID)
 	var i CommentVote
 	err := row.Scan(
 		&i.ID,
@@ -165,8 +164,8 @@ WHERE
   id = $1
 `
 
-func (q *Queries) IncreCommentDownVoted(ctx context.Context, id uuid.UUID) error {
-	_, err := q.db.ExecContext(ctx, increCommentDownVoted, id)
+func (q *Queries) IncreCommentDownVoted(ctx context.Context, id pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, increCommentDownVoted, id)
 	return err
 }
 
@@ -178,7 +177,7 @@ WHERE
   id = $1
 `
 
-func (q *Queries) IncreCommentUpVoted(ctx context.Context, id uuid.UUID) error {
-	_, err := q.db.ExecContext(ctx, increCommentUpVoted, id)
+func (q *Queries) IncreCommentUpVoted(ctx context.Context, id pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, increCommentUpVoted, id)
 	return err
 }

@@ -7,10 +7,8 @@ package database
 
 import (
 	"context"
-	"database/sql"
-	"time"
 
-	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const createUser = `-- name: CreateUser :one
@@ -32,18 +30,18 @@ RETURNING
 `
 
 type CreateUserParams struct {
-	ID           uuid.UUID
-	Email        string
-	Name         string
-	Password     string
-	Image        sql.NullString
-	RefreshToken sql.NullString
-	CreatedAt    time.Time
-	UpdatedAt    time.Time
+	ID           pgtype.UUID      `json:"id"`
+	Email        string           `json:"email"`
+	Name         string           `json:"name"`
+	Password     string           `json:"password"`
+	Image        pgtype.Text      `json:"image"`
+	RefreshToken pgtype.Text      `json:"refresh_token"`
+	CreatedAt    pgtype.Timestamp `json:"created_at"`
+	UpdatedAt    pgtype.Timestamp `json:"updated_at"`
 }
 
 func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, error) {
-	row := q.db.QueryRowContext(ctx, createUser,
+	row := q.db.QueryRow(ctx, createUser,
 		arg.ID,
 		arg.Email,
 		arg.Name,
@@ -75,7 +73,7 @@ WHERE
 `
 
 func (q *Queries) DeleteUserInfo(ctx context.Context, email string) error {
-	_, err := q.db.ExecContext(ctx, deleteUserInfo, email)
+	_, err := q.db.Exec(ctx, deleteUserInfo, email)
 	return err
 }
 
@@ -91,7 +89,7 @@ LIMIT
 `
 
 func (q *Queries) FindUserByEmail(ctx context.Context, email string) (User, error) {
-	row := q.db.QueryRowContext(ctx, findUserByEmail, email)
+	row := q.db.QueryRow(ctx, findUserByEmail, email)
 	var i User
 	err := row.Scan(
 		&i.ID,
@@ -129,10 +127,10 @@ WITH
       p.author_id
   )
 SELECT
-  u.id AS author_id,
-  u.name AS author_name,
-  u.email AS author_email,
-  u.image AS author_image,
+  u.id,
+  u.name,
+  u.email,
+  u.image,
   CASE
     WHEN a.total_posts IS NULL THEN 0
     ELSE a.total_posts
@@ -160,34 +158,34 @@ OFFSET
 `
 
 type GetTopAuthorParams struct {
-	Limit  int32
-	Offset int32
+	Limit  int32 `json:"limit"`
+	Offset int32 `json:"offset"`
 }
 
 type GetTopAuthorRow struct {
-	AuthorID      uuid.UUID
-	AuthorName    string
-	AuthorEmail   string
-	AuthorImage   sql.NullString
-	TotalPosts    int32
-	TotalUpvoted  int32
-	TotalFollower int32
+	ID            pgtype.UUID `json:"id"`
+	Name          string      `json:"name"`
+	Email         string      `json:"email"`
+	Image         pgtype.Text `json:"image"`
+	TotalPosts    int32       `json:"total_posts"`
+	TotalUpvoted  int32       `json:"total_upvoted"`
+	TotalFollower int32       `json:"total_follower"`
 }
 
 func (q *Queries) GetTopAuthor(ctx context.Context, arg GetTopAuthorParams) ([]GetTopAuthorRow, error) {
-	rows, err := q.db.QueryContext(ctx, getTopAuthor, arg.Limit, arg.Offset)
+	rows, err := q.db.Query(ctx, getTopAuthor, arg.Limit, arg.Offset)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []GetTopAuthorRow
+	items := []GetTopAuthorRow{}
 	for rows.Next() {
 		var i GetTopAuthorRow
 		if err := rows.Scan(
-			&i.AuthorID,
-			&i.AuthorName,
-			&i.AuthorEmail,
-			&i.AuthorImage,
+			&i.ID,
+			&i.Name,
+			&i.Email,
+			&i.Image,
 			&i.TotalPosts,
 			&i.TotalUpvoted,
 			&i.TotalFollower,
@@ -195,9 +193,6 @@ func (q *Queries) GetTopAuthor(ctx context.Context, arg GetTopAuthorParams) ([]G
 			return nil, err
 		}
 		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err
@@ -231,34 +226,34 @@ OFFSET
 `
 
 type GetUserHotPostsParams struct {
-	ID     uuid.UUID
-	Limit  int32
-	Offset int32
+	ID     pgtype.UUID `json:"id"`
+	Limit  int32       `json:"limit"`
+	Offset int32       `json:"offset"`
 }
 
 type GetUserHotPostsRow struct {
-	ID                uuid.UUID
-	Title             string
-	Content           string
-	AuthorID          uuid.UUID
-	UpVoted           int32
-	DownVoted         int32
-	CommentsCount     int32
-	CreatedAt         time.Time
-	UpdatedAt         time.Time
-	AuthorName        string
-	AuthorEmail       string
-	AuthorImage       sql.NullString
-	TotalInteractions int32
+	ID                pgtype.UUID      `json:"id"`
+	Title             string           `json:"title"`
+	Content           string           `json:"content"`
+	AuthorID          pgtype.UUID      `json:"author_id"`
+	UpVoted           int32            `json:"up_voted"`
+	DownVoted         int32            `json:"down_voted"`
+	CommentsCount     int32            `json:"comments_count"`
+	CreatedAt         pgtype.Timestamp `json:"created_at"`
+	UpdatedAt         pgtype.Timestamp `json:"updated_at"`
+	AuthorName        string           `json:"author_name"`
+	AuthorEmail       string           `json:"author_email"`
+	AuthorImage       pgtype.Text      `json:"author_image"`
+	TotalInteractions int32            `json:"total_interactions"`
 }
 
 func (q *Queries) GetUserHotPosts(ctx context.Context, arg GetUserHotPostsParams) ([]GetUserHotPostsRow, error) {
-	rows, err := q.db.QueryContext(ctx, getUserHotPosts, arg.ID, arg.Limit, arg.Offset)
+	rows, err := q.db.Query(ctx, getUserHotPosts, arg.ID, arg.Limit, arg.Offset)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []GetUserHotPostsRow
+	items := []GetUserHotPostsRow{}
 	for rows.Next() {
 		var i GetUserHotPostsRow
 		if err := rows.Scan(
@@ -279,9 +274,6 @@ func (q *Queries) GetUserHotPosts(ctx context.Context, arg GetUserHotPostsParams
 			return nil, err
 		}
 		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err
@@ -314,33 +306,33 @@ OFFSET
 `
 
 type GetUserNewPostsParams struct {
-	ID     uuid.UUID
-	Limit  int32
-	Offset int32
+	ID     pgtype.UUID `json:"id"`
+	Limit  int32       `json:"limit"`
+	Offset int32       `json:"offset"`
 }
 
 type GetUserNewPostsRow struct {
-	ID            uuid.UUID
-	Title         string
-	Content       string
-	AuthorID      uuid.UUID
-	UpVoted       int32
-	DownVoted     int32
-	CommentsCount int32
-	CreatedAt     time.Time
-	UpdatedAt     time.Time
-	AuthorName    string
-	AuthorEmail   string
-	AuthorImage   sql.NullString
+	ID            pgtype.UUID      `json:"id"`
+	Title         string           `json:"title"`
+	Content       string           `json:"content"`
+	AuthorID      pgtype.UUID      `json:"author_id"`
+	UpVoted       int32            `json:"up_voted"`
+	DownVoted     int32            `json:"down_voted"`
+	CommentsCount int32            `json:"comments_count"`
+	CreatedAt     pgtype.Timestamp `json:"created_at"`
+	UpdatedAt     pgtype.Timestamp `json:"updated_at"`
+	AuthorName    string           `json:"author_name"`
+	AuthorEmail   string           `json:"author_email"`
+	AuthorImage   pgtype.Text      `json:"author_image"`
 }
 
 func (q *Queries) GetUserNewPosts(ctx context.Context, arg GetUserNewPostsParams) ([]GetUserNewPostsRow, error) {
-	rows, err := q.db.QueryContext(ctx, getUserNewPosts, arg.ID, arg.Limit, arg.Offset)
+	rows, err := q.db.Query(ctx, getUserNewPosts, arg.ID, arg.Limit, arg.Offset)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []GetUserNewPostsRow
+	items := []GetUserNewPostsRow{}
 	for rows.Next() {
 		var i GetUserNewPostsRow
 		if err := rows.Scan(
@@ -360,9 +352,6 @@ func (q *Queries) GetUserNewPosts(ctx context.Context, arg GetUserNewPostsParams
 			return nil, err
 		}
 		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err
@@ -459,22 +448,22 @@ FROM
 `
 
 type GetUserOverviewRow struct {
-	ID             uuid.UUID
-	Name           string
-	Email          string
-	Image          sql.NullString
-	Bio            sql.NullString
-	CreatedAt      time.Time
-	UpdatedAt      time.Time
-	TotalPosts     int32
-	TotalUpvoted   int32
-	TotalDownvoted int32
-	Follower       int32
-	Following      int32
+	ID             pgtype.UUID      `json:"id"`
+	Name           string           `json:"name"`
+	Email          string           `json:"email"`
+	Image          pgtype.Text      `json:"image"`
+	Bio            pgtype.Text      `json:"bio"`
+	CreatedAt      pgtype.Timestamp `json:"created_at"`
+	UpdatedAt      pgtype.Timestamp `json:"updated_at"`
+	TotalPosts     int32            `json:"total_posts"`
+	TotalUpvoted   int32            `json:"total_upvoted"`
+	TotalDownvoted int32            `json:"total_downvoted"`
+	Follower       int32            `json:"follower"`
+	Following      int32            `json:"following"`
 }
 
-func (q *Queries) GetUserOverview(ctx context.Context, id uuid.UUID) (GetUserOverviewRow, error) {
-	row := q.db.QueryRowContext(ctx, getUserOverview, id)
+func (q *Queries) GetUserOverview(ctx context.Context, id pgtype.UUID) (GetUserOverviewRow, error) {
+	row := q.db.QueryRow(ctx, getUserOverview, id)
 	var i GetUserOverviewRow
 	err := row.Scan(
 		&i.ID,
@@ -519,33 +508,33 @@ OFFSET
 `
 
 type GetUserTopPostsParams struct {
-	ID     uuid.UUID
-	Limit  int32
-	Offset int32
+	ID     pgtype.UUID `json:"id"`
+	Limit  int32       `json:"limit"`
+	Offset int32       `json:"offset"`
 }
 
 type GetUserTopPostsRow struct {
-	ID            uuid.UUID
-	Title         string
-	Content       string
-	AuthorID      uuid.UUID
-	UpVoted       int32
-	DownVoted     int32
-	CommentsCount int32
-	CreatedAt     time.Time
-	UpdatedAt     time.Time
-	AuthorName    string
-	AuthorEmail   string
-	AuthorImage   sql.NullString
+	ID            pgtype.UUID      `json:"id"`
+	Title         string           `json:"title"`
+	Content       string           `json:"content"`
+	AuthorID      pgtype.UUID      `json:"author_id"`
+	UpVoted       int32            `json:"up_voted"`
+	DownVoted     int32            `json:"down_voted"`
+	CommentsCount int32            `json:"comments_count"`
+	CreatedAt     pgtype.Timestamp `json:"created_at"`
+	UpdatedAt     pgtype.Timestamp `json:"updated_at"`
+	AuthorName    string           `json:"author_name"`
+	AuthorEmail   string           `json:"author_email"`
+	AuthorImage   pgtype.Text      `json:"author_image"`
 }
 
 func (q *Queries) GetUserTopPosts(ctx context.Context, arg GetUserTopPostsParams) ([]GetUserTopPostsRow, error) {
-	rows, err := q.db.QueryContext(ctx, getUserTopPosts, arg.ID, arg.Limit, arg.Offset)
+	rows, err := q.db.Query(ctx, getUserTopPosts, arg.ID, arg.Limit, arg.Offset)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []GetUserTopPostsRow
+	items := []GetUserTopPostsRow{}
 	for rows.Next() {
 		var i GetUserTopPostsRow
 		if err := rows.Scan(
@@ -565,9 +554,6 @@ func (q *Queries) GetUserTopPosts(ctx context.Context, arg GetUserTopPostsParams
 			return nil, err
 		}
 		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err
@@ -590,16 +576,16 @@ RETURNING
 `
 
 type UpdateUserInfoParams struct {
-	Email     string
-	Name      string
-	Password  string
-	Image     sql.NullString
-	Bio       sql.NullString
-	UpdatedAt time.Time
+	Email     string           `json:"email"`
+	Name      string           `json:"name"`
+	Password  string           `json:"password"`
+	Image     pgtype.Text      `json:"image"`
+	Bio       pgtype.Text      `json:"bio"`
+	UpdatedAt pgtype.Timestamp `json:"updated_at"`
 }
 
 func (q *Queries) UpdateUserInfo(ctx context.Context, arg UpdateUserInfoParams) (User, error) {
-	row := q.db.QueryRowContext(ctx, updateUserInfo,
+	row := q.db.QueryRow(ctx, updateUserInfo,
 		arg.Email,
 		arg.Name,
 		arg.Password,
@@ -633,12 +619,12 @@ RETURNING
 `
 
 type UpdateUserRefreshTokenParams struct {
-	Email        string
-	RefreshToken sql.NullString
+	Email        string      `json:"email"`
+	RefreshToken pgtype.Text `json:"refresh_token"`
 }
 
 func (q *Queries) UpdateUserRefreshToken(ctx context.Context, arg UpdateUserRefreshTokenParams) (User, error) {
-	row := q.db.QueryRowContext(ctx, updateUserRefreshToken, arg.Email, arg.RefreshToken)
+	row := q.db.QueryRow(ctx, updateUserRefreshToken, arg.Email, arg.RefreshToken)
 	var i User
 	err := row.Scan(
 		&i.ID,

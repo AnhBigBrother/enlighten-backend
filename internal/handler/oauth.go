@@ -2,7 +2,6 @@ package handler
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"fmt"
 	"net/http"
@@ -14,6 +13,7 @@ import (
 	"github.com/AnhBigBrother/enlighten-backend/pkg/resp"
 	"github.com/AnhBigBrother/enlighten-backend/pkg/token"
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 type OauthHandler struct {
@@ -309,7 +309,7 @@ func (oauthHandler *OauthHandler) signInOauthUser(user oauthUserInfo) (string, s
 
 	_, err = oauthHandler.DB.UpdateUserRefreshToken(context.Background(), database.UpdateUserRefreshTokenParams{
 		Email:        dbUser.Email,
-		RefreshToken: sql.NullString{String: refresh_token, Valid: true},
+		RefreshToken: pgtype.Text{String: refresh_token, Valid: true},
 	})
 	if err != nil {
 		return "", "", nil

@@ -8,10 +8,10 @@ import (
 	"github.com/AnhBigBrother/enlighten-backend/cfg"
 	"github.com/AnhBigBrother/enlighten-backend/internal/database"
 	"github.com/AnhBigBrother/enlighten-backend/internal/dto"
-	"github.com/AnhBigBrother/enlighten-backend/internal/models"
 	"github.com/AnhBigBrother/enlighten-backend/pkg/parser"
 	"github.com/AnhBigBrother/enlighten-backend/pkg/resp"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 type PostsHandler struct {
@@ -48,7 +48,7 @@ func (postsHandler *PostsHandler) GetFollowedPosts(w http.ResponseWriter, r *htt
 	}
 	if sort == "hot" {
 		posts, err := postsHandler.DB.GetHotFollowedPosts(r.Context(), database.GetHotFollowedPostsParams{
-			FollowerID: userUUID,
+			FollowerID: pgtype.UUID{Bytes: userUUID, Valid: true},
 			Limit:      int32(limit),
 			Offset:     int32(offset),
 		})
@@ -56,16 +56,12 @@ func (postsHandler *PostsHandler) GetFollowedPosts(w http.ResponseWriter, r *htt
 			resp.Err(w, 404, err.Error())
 			return
 		}
-		ret := []models.Post{}
-		for _, p := range posts {
-			ret = append(ret, models.FormatDatabaseGetHotFollowedPostsRow(p))
-		}
-		resp.Json(w, 200, ret)
+		resp.Json(w, 200, posts)
 		return
 	}
 	if sort == "top" {
 		posts, err := postsHandler.DB.GetTopFollowedPosts(r.Context(), database.GetTopFollowedPostsParams{
-			FollowerID: userUUID,
+			FollowerID: pgtype.UUID{Bytes: userUUID, Valid: true},
 			Limit:      int32(limit),
 			Offset:     int32(offset),
 		})
@@ -73,15 +69,11 @@ func (postsHandler *PostsHandler) GetFollowedPosts(w http.ResponseWriter, r *htt
 			resp.Err(w, 404, err.Error())
 			return
 		}
-		ret := []models.Post{}
-		for _, p := range posts {
-			ret = append(ret, models.FormatDatabaseGetTopFollowedPostsRow(p))
-		}
-		resp.Json(w, 200, ret)
+		resp.Json(w, 200, posts)
 		return
 	}
 	posts, err := postsHandler.DB.GetNewFollowedPosts(r.Context(), database.GetNewFollowedPostsParams{
-		FollowerID: userUUID,
+		FollowerID: pgtype.UUID{Bytes: userUUID, Valid: true},
 		Limit:      int32(limit),
 		Offset:     int32(offset),
 	})
@@ -89,11 +81,7 @@ func (postsHandler *PostsHandler) GetFollowedPosts(w http.ResponseWriter, r *htt
 		resp.Err(w, 404, err.Error())
 		return
 	}
-	ret := []models.Post{}
-	for _, p := range posts {
-		ret = append(ret, models.FormatDatabaseGetNewFollowedPostsRow(p))
-	}
-	resp.Json(w, 200, ret)
+	resp.Json(w, 200, posts)
 }
 
 func (postsHandler *PostsHandler) GetAllPosts(w http.ResponseWriter, r *http.Request) {
@@ -116,11 +104,7 @@ func (postsHandler *PostsHandler) GetAllPosts(w http.ResponseWriter, r *http.Req
 			resp.Err(w, 404, err.Error())
 			return
 		}
-		ret := []models.Post{}
-		for _, p := range posts {
-			ret = append(ret, models.FormatDatabaseGetHotPostsRow(p))
-		}
-		resp.Json(w, 200, ret)
+		resp.Json(w, 200, posts)
 		return
 	}
 	if sort == "top" {
@@ -132,11 +116,7 @@ func (postsHandler *PostsHandler) GetAllPosts(w http.ResponseWriter, r *http.Req
 			resp.Err(w, 404, err.Error())
 			return
 		}
-		ret := []models.Post{}
-		for _, p := range posts {
-			ret = append(ret, models.FormatDatabaseGetTopPostsRow(p))
-		}
-		resp.Json(w, 200, ret)
+		resp.Json(w, 200, posts)
 		return
 	}
 	posts, err := postsHandler.DB.GetNewPosts(r.Context(), database.GetNewPostsParams{
@@ -147,11 +127,7 @@ func (postsHandler *PostsHandler) GetAllPosts(w http.ResponseWriter, r *http.Req
 		resp.Err(w, 404, err.Error())
 		return
 	}
-	ret := []models.Post{}
-	for _, p := range posts {
-		ret = append(ret, models.FormatDatabaseGetNewPostsRow(p))
-	}
-	resp.Json(w, 200, ret)
+	resp.Json(w, 200, posts)
 }
 
 func (postsHandler *PostsHandler) CreatePost(w http.ResponseWriter, r *http.Request) {
@@ -175,18 +151,18 @@ func (postsHandler *PostsHandler) CreatePost(w http.ResponseWriter, r *http.Requ
 	}
 	currentTime := time.Now()
 	post, err := postsHandler.DB.CreatePost(r.Context(), database.CreatePostParams{
-		ID:        uuid.New(),
+		ID:        pgtype.UUID{Bytes: uuid.New(), Valid: true},
 		Title:     params.Title,
 		Content:   params.Content,
-		AuthorID:  authorUuid,
-		CreatedAt: currentTime,
-		UpdatedAt: currentTime,
+		AuthorID:  pgtype.UUID{Bytes: authorUuid, Valid: true},
+		CreatedAt: pgtype.Timestamp{Time: currentTime, InfinityModifier: pgtype.Finite, Valid: true},
+		UpdatedAt: pgtype.Timestamp{Time: currentTime, InfinityModifier: pgtype.Finite, Valid: true},
 	})
 	if err != nil {
 		resp.Err(w, 400, err.Error())
 		return
 	}
-	resp.Json(w, 201, models.FormatDatabasePost(post))
+	resp.Json(w, 201, post)
 }
 
 func (postsHandler *PostsHandler) GetPostById(w http.ResponseWriter, r *http.Request) {
@@ -196,12 +172,12 @@ func (postsHandler *PostsHandler) GetPostById(w http.ResponseWriter, r *http.Req
 		resp.Err(w, 400, err.Error())
 		return
 	}
-	post, err := postsHandler.DB.GetPostById(r.Context(), postUUID)
+	post, err := postsHandler.DB.GetPostById(r.Context(), pgtype.UUID{Bytes: postUUID, Valid: true})
 	if err != nil {
 		resp.Err(w, 404, err.Error())
 		return
 	}
-	resp.Json(w, 200, models.FormatDatabaseGetPostByIdRow(post))
+	resp.Json(w, 200, post)
 }
 
 func (postsHandler *PostsHandler) UpVotePost(w http.ResponseWriter, r *http.Request) {
@@ -218,7 +194,7 @@ func (postsHandler *PostsHandler) UpVotePost(w http.ResponseWriter, r *http.Requ
 		resp.Err(w, 400, err.Error())
 		return
 	}
-	err = postsHandler.DB.VotePost(r.Context(), cfg.DBConnection, authorUuid, postUUID, "up")
+	err = postsHandler.DB.VotePost(r.Context(), cfg.DBConnection, pgtype.UUID{Bytes: authorUuid, Valid: true}, pgtype.UUID{Bytes: postUUID, Valid: true}, "up")
 	if err != nil {
 		resp.Err(w, 400, err.Error())
 		return
@@ -243,7 +219,7 @@ func (postsHandler *PostsHandler) DownVotePost(w http.ResponseWriter, r *http.Re
 		resp.Err(w, 400, err.Error())
 		return
 	}
-	err = postsHandler.DB.VotePost(r.Context(), cfg.DBConnection, authorUuid, postUUID, "down")
+	err = postsHandler.DB.VotePost(r.Context(), cfg.DBConnection, pgtype.UUID{Bytes: authorUuid, Valid: true}, pgtype.UUID{Bytes: postUUID, Valid: true}, "down")
 	if err != nil {
 		resp.Err(w, 400, err.Error())
 		return
@@ -269,8 +245,8 @@ func (postsHandler *PostsHandler) CheckVoted(w http.ResponseWriter, r *http.Requ
 		return
 	}
 	pv, err := postsHandler.DB.GetPostVotes(r.Context(), database.GetPostVotesParams{
-		PostID:  postUUID,
-		VoterID: authorUuid,
+		PostID:  pgtype.UUID{Bytes: postUUID, Valid: true},
+		VoterID: pgtype.UUID{Bytes: authorUuid, Valid: true},
 	})
 	if err != nil {
 		resp.Json(w, 200, struct {
@@ -309,19 +285,12 @@ func (postsHandler *PostsHandler) AddPostComment(w http.ResponseWriter, r *http.
 		resp.Err(w, 400, err.Error())
 		return
 	}
-	com, err := postsHandler.DB.AddComment(r.Context(), cfg.DBConnection, params.Comment, authorUuid, postUUID, uuid.NullUUID{})
+	comment, err := postsHandler.DB.AddComment(r.Context(), cfg.DBConnection, params.Comment, pgtype.UUID{Bytes: authorUuid, Valid: true}, pgtype.UUID{Bytes: postUUID, Valid: true}, pgtype.UUID{Valid: false})
 	if err != nil {
 		resp.Err(w, 400, err.Error())
 		return
 	}
-	resp.Json(w, 201, models.Comment{
-		ID:              com.ID,
-		Comment:         com.Comment,
-		AuthorId:        com.AuthorID,
-		PostID:          com.PostID,
-		ParentCommentID: com.ParentCommentID,
-		CreatedAt:       com.CreatedAt,
-	})
+	resp.Json(w, 201, comment)
 }
 
 func (postsHandler *PostsHandler) GetPostComments(w http.ResponseWriter, r *http.Request) {
@@ -342,7 +311,7 @@ func (postsHandler *PostsHandler) GetPostComments(w http.ResponseWriter, r *http
 		return
 	}
 	comments, err := postsHandler.DB.GetPostComments(r.Context(), database.GetPostCommentsParams{
-		PostID: postUUID,
+		PostID: pgtype.UUID{Bytes: postUUID, Valid: true},
 		Limit:  int32(limit),
 		Offset: int32(offset),
 	})
@@ -350,9 +319,5 @@ func (postsHandler *PostsHandler) GetPostComments(w http.ResponseWriter, r *http
 		resp.Err(w, 404, err.Error())
 		return
 	}
-	cms := []models.Comment{}
-	for _, c := range comments {
-		cms = append(cms, models.FormatDatabaseGetPostCommentsRow(c))
-	}
-	resp.Json(w, 200, cms)
+	resp.Json(w, 200, comments)
 }

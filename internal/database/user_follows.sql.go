@@ -7,10 +7,8 @@ package database
 
 import (
 	"context"
-	"database/sql"
-	"time"
 
-	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const createFollows = `-- name: CreateFollows :exec
@@ -21,14 +19,14 @@ VALUES
 `
 
 type CreateFollowsParams struct {
-	ID         uuid.UUID
-	FollowerID uuid.UUID
-	AuthorID   uuid.UUID
-	CreatedAt  time.Time
+	ID         pgtype.UUID      `json:"id"`
+	FollowerID pgtype.UUID      `json:"follower_id"`
+	AuthorID   pgtype.UUID      `json:"author_id"`
+	CreatedAt  pgtype.Timestamp `json:"created_at"`
 }
 
 func (q *Queries) CreateFollows(ctx context.Context, arg CreateFollowsParams) error {
-	_, err := q.db.ExecContext(ctx, createFollows,
+	_, err := q.db.Exec(ctx, createFollows,
 		arg.ID,
 		arg.FollowerID,
 		arg.AuthorID,
@@ -45,12 +43,12 @@ WHERE
 `
 
 type DeleteFollowsParams struct {
-	AuthorID   uuid.UUID
-	FollowerID uuid.UUID
+	AuthorID   pgtype.UUID `json:"author_id"`
+	FollowerID pgtype.UUID `json:"follower_id"`
 }
 
 func (q *Queries) DeleteFollows(ctx context.Context, arg DeleteFollowsParams) error {
-	_, err := q.db.ExecContext(ctx, deleteFollows, arg.AuthorID, arg.FollowerID)
+	_, err := q.db.Exec(ctx, deleteFollows, arg.AuthorID, arg.FollowerID)
 	return err
 }
 
@@ -79,25 +77,25 @@ OFFSET
 `
 
 type GetFollowedAuthorParams struct {
-	FollowerID uuid.UUID
-	Limit      int32
-	Offset     int32
+	FollowerID pgtype.UUID `json:"follower_id"`
+	Limit      int32       `json:"limit"`
+	Offset     int32       `json:"offset"`
 }
 
 type GetFollowedAuthorRow struct {
-	ID    uuid.UUID
-	Email string
-	Name  string
-	Image sql.NullString
+	ID    pgtype.UUID `json:"id"`
+	Email string      `json:"email"`
+	Name  string      `json:"name"`
+	Image pgtype.Text `json:"image"`
 }
 
 func (q *Queries) GetFollowedAuthor(ctx context.Context, arg GetFollowedAuthorParams) ([]GetFollowedAuthorRow, error) {
-	rows, err := q.db.QueryContext(ctx, getFollowedAuthor, arg.FollowerID, arg.Limit, arg.Offset)
+	rows, err := q.db.Query(ctx, getFollowedAuthor, arg.FollowerID, arg.Limit, arg.Offset)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []GetFollowedAuthorRow
+	items := []GetFollowedAuthorRow{}
 	for rows.Next() {
 		var i GetFollowedAuthorRow
 		if err := rows.Scan(
@@ -109,9 +107,6 @@ func (q *Queries) GetFollowedAuthor(ctx context.Context, arg GetFollowedAuthorPa
 			return nil, err
 		}
 		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err
@@ -153,33 +148,33 @@ OFFSET
 `
 
 type GetFollowedPostsParams struct {
-	FollowerID uuid.UUID
-	Limit      int32
-	Offset     int32
+	FollowerID pgtype.UUID `json:"follower_id"`
+	Limit      int32       `json:"limit"`
+	Offset     int32       `json:"offset"`
 }
 
 type GetFollowedPostsRow struct {
-	AuthorEmail   sql.NullString
-	AuthorName    sql.NullString
-	AuthorImage   sql.NullString
-	ID            uuid.NullUUID
-	Title         sql.NullString
-	Content       sql.NullString
-	AuthorID      uuid.NullUUID
-	UpVoted       sql.NullInt32
-	DownVoted     sql.NullInt32
-	CommentsCount sql.NullInt32
-	CreatedAt     sql.NullTime
-	UpdatedAt     sql.NullTime
+	AuthorEmail   pgtype.Text      `json:"author_email"`
+	AuthorName    pgtype.Text      `json:"author_name"`
+	AuthorImage   pgtype.Text      `json:"author_image"`
+	ID            pgtype.UUID      `json:"id"`
+	Title         pgtype.Text      `json:"title"`
+	Content       pgtype.Text      `json:"content"`
+	AuthorID      pgtype.UUID      `json:"author_id"`
+	UpVoted       pgtype.Int4      `json:"up_voted"`
+	DownVoted     pgtype.Int4      `json:"down_voted"`
+	CommentsCount pgtype.Int4      `json:"comments_count"`
+	CreatedAt     pgtype.Timestamp `json:"created_at"`
+	UpdatedAt     pgtype.Timestamp `json:"updated_at"`
 }
 
 func (q *Queries) GetFollowedPosts(ctx context.Context, arg GetFollowedPostsParams) ([]GetFollowedPostsRow, error) {
-	rows, err := q.db.QueryContext(ctx, getFollowedPosts, arg.FollowerID, arg.Limit, arg.Offset)
+	rows, err := q.db.Query(ctx, getFollowedPosts, arg.FollowerID, arg.Limit, arg.Offset)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []GetFollowedPostsRow
+	items := []GetFollowedPostsRow{}
 	for rows.Next() {
 		var i GetFollowedPostsRow
 		if err := rows.Scan(
@@ -200,9 +195,6 @@ func (q *Queries) GetFollowedPosts(ctx context.Context, arg GetFollowedPostsPara
 		}
 		items = append(items, i)
 	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
 	if err := rows.Err(); err != nil {
 		return nil, err
 	}
@@ -220,12 +212,12 @@ WHERE
 `
 
 type GetFollowsParams struct {
-	FollowerID uuid.UUID
-	AuthorID   uuid.UUID
+	FollowerID pgtype.UUID `json:"follower_id"`
+	AuthorID   pgtype.UUID `json:"author_id"`
 }
 
 func (q *Queries) GetFollows(ctx context.Context, arg GetFollowsParams) (UserFollow, error) {
-	row := q.db.QueryRowContext(ctx, getFollows, arg.FollowerID, arg.AuthorID)
+	row := q.db.QueryRow(ctx, getFollows, arg.FollowerID, arg.AuthorID)
 	var i UserFollow
 	err := row.Scan(
 		&i.ID,
@@ -273,35 +265,35 @@ OFFSET
 `
 
 type GetHotFollowedPostsParams struct {
-	FollowerID uuid.UUID
-	Limit      int32
-	Offset     int32
+	FollowerID pgtype.UUID `json:"follower_id"`
+	Limit      int32       `json:"limit"`
+	Offset     int32       `json:"offset"`
 }
 
 type GetHotFollowedPostsRow struct {
-	ID                uuid.UUID
-	Title             string
-	Content           string
-	AuthorID          uuid.UUID
-	UpVoted           int32
-	DownVoted         int32
-	CommentsCount     int32
-	CreatedAt         time.Time
-	UpdatedAt         time.Time
-	AuthorEmail       sql.NullString
-	AuthorName        sql.NullString
-	AuthorImage       sql.NullString
-	TotalInteractions int32
-	Priority          int32
+	ID                pgtype.UUID      `json:"id"`
+	Title             string           `json:"title"`
+	Content           string           `json:"content"`
+	AuthorID          pgtype.UUID      `json:"author_id"`
+	UpVoted           int32            `json:"up_voted"`
+	DownVoted         int32            `json:"down_voted"`
+	CommentsCount     int32            `json:"comments_count"`
+	CreatedAt         pgtype.Timestamp `json:"created_at"`
+	UpdatedAt         pgtype.Timestamp `json:"updated_at"`
+	AuthorEmail       pgtype.Text      `json:"author_email"`
+	AuthorName        pgtype.Text      `json:"author_name"`
+	AuthorImage       pgtype.Text      `json:"author_image"`
+	TotalInteractions int32            `json:"total_interactions"`
+	Priority          int32            `json:"priority"`
 }
 
 func (q *Queries) GetHotFollowedPosts(ctx context.Context, arg GetHotFollowedPostsParams) ([]GetHotFollowedPostsRow, error) {
-	rows, err := q.db.QueryContext(ctx, getHotFollowedPosts, arg.FollowerID, arg.Limit, arg.Offset)
+	rows, err := q.db.Query(ctx, getHotFollowedPosts, arg.FollowerID, arg.Limit, arg.Offset)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []GetHotFollowedPostsRow
+	items := []GetHotFollowedPostsRow{}
 	for rows.Next() {
 		var i GetHotFollowedPostsRow
 		if err := rows.Scan(
@@ -323,9 +315,6 @@ func (q *Queries) GetHotFollowedPosts(ctx context.Context, arg GetHotFollowedPos
 			return nil, err
 		}
 		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err
@@ -369,34 +358,34 @@ OFFSET
 `
 
 type GetNewFollowedPostsParams struct {
-	FollowerID uuid.UUID
-	Limit      int32
-	Offset     int32
+	FollowerID pgtype.UUID `json:"follower_id"`
+	Limit      int32       `json:"limit"`
+	Offset     int32       `json:"offset"`
 }
 
 type GetNewFollowedPostsRow struct {
-	ID            uuid.UUID
-	Title         string
-	Content       string
-	AuthorID      uuid.UUID
-	UpVoted       int32
-	DownVoted     int32
-	CommentsCount int32
-	CreatedAt     time.Time
-	UpdatedAt     time.Time
-	AuthorEmail   sql.NullString
-	AuthorName    sql.NullString
-	AuthorImage   sql.NullString
-	Priority      int32
+	ID            pgtype.UUID      `json:"id"`
+	Title         string           `json:"title"`
+	Content       string           `json:"content"`
+	AuthorID      pgtype.UUID      `json:"author_id"`
+	UpVoted       int32            `json:"up_voted"`
+	DownVoted     int32            `json:"down_voted"`
+	CommentsCount int32            `json:"comments_count"`
+	CreatedAt     pgtype.Timestamp `json:"created_at"`
+	UpdatedAt     pgtype.Timestamp `json:"updated_at"`
+	AuthorEmail   pgtype.Text      `json:"author_email"`
+	AuthorName    pgtype.Text      `json:"author_name"`
+	AuthorImage   pgtype.Text      `json:"author_image"`
+	Priority      int32            `json:"priority"`
 }
 
 func (q *Queries) GetNewFollowedPosts(ctx context.Context, arg GetNewFollowedPostsParams) ([]GetNewFollowedPostsRow, error) {
-	rows, err := q.db.QueryContext(ctx, getNewFollowedPosts, arg.FollowerID, arg.Limit, arg.Offset)
+	rows, err := q.db.Query(ctx, getNewFollowedPosts, arg.FollowerID, arg.Limit, arg.Offset)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []GetNewFollowedPostsRow
+	items := []GetNewFollowedPostsRow{}
 	for rows.Next() {
 		var i GetNewFollowedPostsRow
 		if err := rows.Scan(
@@ -417,9 +406,6 @@ func (q *Queries) GetNewFollowedPosts(ctx context.Context, arg GetNewFollowedPos
 			return nil, err
 		}
 		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err
@@ -463,34 +449,34 @@ OFFSET
 `
 
 type GetTopFollowedPostsParams struct {
-	FollowerID uuid.UUID
-	Limit      int32
-	Offset     int32
+	FollowerID pgtype.UUID `json:"follower_id"`
+	Limit      int32       `json:"limit"`
+	Offset     int32       `json:"offset"`
 }
 
 type GetTopFollowedPostsRow struct {
-	ID            uuid.UUID
-	Title         string
-	Content       string
-	AuthorID      uuid.UUID
-	UpVoted       int32
-	DownVoted     int32
-	CommentsCount int32
-	CreatedAt     time.Time
-	UpdatedAt     time.Time
-	AuthorEmail   sql.NullString
-	AuthorName    sql.NullString
-	AuthorImage   sql.NullString
-	Priority      int32
+	ID            pgtype.UUID      `json:"id"`
+	Title         string           `json:"title"`
+	Content       string           `json:"content"`
+	AuthorID      pgtype.UUID      `json:"author_id"`
+	UpVoted       int32            `json:"up_voted"`
+	DownVoted     int32            `json:"down_voted"`
+	CommentsCount int32            `json:"comments_count"`
+	CreatedAt     pgtype.Timestamp `json:"created_at"`
+	UpdatedAt     pgtype.Timestamp `json:"updated_at"`
+	AuthorEmail   pgtype.Text      `json:"author_email"`
+	AuthorName    pgtype.Text      `json:"author_name"`
+	AuthorImage   pgtype.Text      `json:"author_image"`
+	Priority      int32            `json:"priority"`
 }
 
 func (q *Queries) GetTopFollowedPosts(ctx context.Context, arg GetTopFollowedPostsParams) ([]GetTopFollowedPostsRow, error) {
-	rows, err := q.db.QueryContext(ctx, getTopFollowedPosts, arg.FollowerID, arg.Limit, arg.Offset)
+	rows, err := q.db.Query(ctx, getTopFollowedPosts, arg.FollowerID, arg.Limit, arg.Offset)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []GetTopFollowedPostsRow
+	items := []GetTopFollowedPostsRow{}
 	for rows.Next() {
 		var i GetTopFollowedPostsRow
 		if err := rows.Scan(
@@ -511,9 +497,6 @@ func (q *Queries) GetTopFollowedPosts(ctx context.Context, arg GetTopFollowedPos
 			return nil, err
 		}
 		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err

@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"database/sql"
 	"log"
 	"net/http"
 	"strconv"
@@ -10,12 +9,12 @@ import (
 	"github.com/AnhBigBrother/enlighten-backend/cfg"
 	"github.com/AnhBigBrother/enlighten-backend/internal/database"
 	"github.com/AnhBigBrother/enlighten-backend/internal/dto"
-	"github.com/AnhBigBrother/enlighten-backend/internal/models"
 	"github.com/AnhBigBrother/enlighten-backend/pkg/parser"
 	"github.com/AnhBigBrother/enlighten-backend/pkg/resp"
 	"github.com/AnhBigBrother/enlighten-backend/pkg/token"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -65,16 +64,16 @@ func (usersHandler *UsersHandler) SignUp(w http.ResponseWriter, r *http.Request)
 	}
 
 	createUserParams := database.CreateUserParams{
-		ID:           userId,
+		ID:           pgtype.UUID{Bytes: userId, Valid: true},
 		Email:        params.Email,
 		Name:         params.Name,
 		Password:     string(hashedPassword),
-		RefreshToken: sql.NullString{String: refresh_token, Valid: true},
-		CreatedAt:    currentTime,
-		UpdatedAt:    currentTime,
+		RefreshToken: pgtype.Text{String: refresh_token, Valid: true},
+		CreatedAt:    pgtype.Timestamp{Time: currentTime, InfinityModifier: pgtype.Finite, Valid: true},
+		UpdatedAt:    pgtype.Timestamp{Time: currentTime, InfinityModifier: pgtype.Finite, Valid: true},
 	}
 	if params.Image != "" {
-		createUserParams.Image = sql.NullString{String: params.Image, Valid: true}
+		createUserParams.Image = pgtype.Text{String: params.Image, Valid: true}
 	}
 
 	_, err = usersHandler.DB.CreateUser(r.Context(), createUserParams)
@@ -164,7 +163,7 @@ func (usersHandler *UsersHandler) SignIn(w http.ResponseWriter, r *http.Request)
 
 	_, err = usersHandler.DB.UpdateUserRefreshToken(r.Context(), database.UpdateUserRefreshTokenParams{
 		Email:        params.Email,
-		RefreshToken: sql.NullString{String: refresh_token, Valid: true},
+		RefreshToken: pgtype.Text{String: refresh_token, Valid: true},
 	})
 	if err != nil {
 		resp.Err(w, 400, err.Error())
@@ -186,7 +185,7 @@ func (usersHandler *UsersHandler) SignOut(w http.ResponseWriter, r *http.Request
 
 	_, err := usersHandler.DB.UpdateUserRefreshToken(r.Context(), database.UpdateUserRefreshTokenParams{
 		Email:        sessionEmail,
-		RefreshToken: sql.NullString{String: "", Valid: false},
+		RefreshToken: pgtype.Text{Valid: false},
 	})
 
 	if err != nil {
@@ -210,7 +209,7 @@ func (usersHandler *UsersHandler) GetMe(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	resp.Json(w, 200, models.FormatDatabaseUser(currUser))
+	resp.Json(w, 200, currUser)
 }
 
 func (usersHandler *UsersHandler) UpdateMe(w http.ResponseWriter, r *http.Request) {
@@ -245,9 +244,8 @@ func (usersHandler *UsersHandler) UpdateMe(w http.ResponseWriter, r *http.Reques
 		Name:      user.Name,
 		Image:     user.Image,
 		Password:  user.Password,
-		UpdatedAt: time.Now(),
+		UpdatedAt: pgtype.Timestamp{Time: time.Now(), InfinityModifier: pgtype.Finite, Valid: true},
 	}
-	updateUserInfoParams.UpdatedAt = time.Now()
 	if len(params.Password) > 0 {
 		updateUserInfoParams.Password = params.Password
 	}
@@ -255,10 +253,10 @@ func (usersHandler *UsersHandler) UpdateMe(w http.ResponseWriter, r *http.Reques
 		updateUserInfoParams.Name = params.Name
 	}
 	if len(params.Image) > 0 {
-		updateUserInfoParams.Image = sql.NullString{String: params.Image, Valid: true}
+		updateUserInfoParams.Image = pgtype.Text{String: params.Image, Valid: true}
 	}
 	if len(params.Bio) > 0 {
-		updateUserInfoParams.Bio = sql.NullString{String: params.Bio, Valid: true}
+		updateUserInfoParams.Bio = pgtype.Text{String: params.Bio, Valid: true}
 	}
 	_, err = usersHandler.DB.UpdateUserInfo(r.Context(), updateUserInfoParams)
 	if err != nil {
@@ -366,7 +364,7 @@ func (usersHandler *UsersHandler) GetAccessToken(w http.ResponseWriter, r *http.
 
 	user, err := usersHandler.DB.UpdateUserRefreshToken(r.Context(), database.UpdateUserRefreshTokenParams{
 		Email:        claims["email"].(string),
-		RefreshToken: sql.NullString{String: new_refresh_token, Valid: true},
+		RefreshToken: pgtype.Text{String: new_refresh_token, Valid: true},
 	})
 	if err != nil {
 		resp.Err(w, 404, err.Error())
@@ -406,24 +404,24 @@ func (usersHandler *UsersHandler) GetMyOverview(w http.ResponseWriter, r *http.R
 		resp.Err(w, 400, "invalid user_id")
 		return
 	}
-	overview, err := usersHandler.DB.GetUserOverview(r.Context(), userUUID)
+	overview, err := usersHandler.DB.GetUserOverview(r.Context(), pgtype.UUID{Bytes: userUUID, Valid: true})
 	if err != nil {
 		resp.Err(w, 404, "user not found")
 		return
 	}
 	resp.Json(w, 200, struct {
-		ID             uuid.UUID `json:"id"`
-		Name           string    `json:"name"`
-		Email          string    `json:"email"`
-		Image          string    `json:"image"`
-		Bio            string    `json:"bio"`
-		TotalPosts     int32     `json:"total_posts"`
-		TotalUpvoted   int32     `json:"total_upvoted"`
-		TotalDownvoted int32     `json:"total_downvoted"`
-		Follower       int32     `json:"follower"`
-		Following      int32     `json:"following"`
-		CreatedAt      time.Time `json:"created_at"`
-		UpdatedAt      time.Time `json:"updated_at"`
+		ID             pgtype.UUID      `json:"id"`
+		Name           string           `json:"name"`
+		Email          string           `json:"email"`
+		Image          string           `json:"image"`
+		Bio            string           `json:"bio"`
+		TotalPosts     int32            `json:"total_posts"`
+		TotalUpvoted   int32            `json:"total_upvoted"`
+		TotalDownvoted int32            `json:"total_downvoted"`
+		Follower       int32            `json:"follower"`
+		Following      int32            `json:"following"`
+		CreatedAt      pgtype.Timestamp `json:"created_at"`
+		UpdatedAt      pgtype.Timestamp `json:"updated_at"`
 	}{
 		ID:             overview.ID,
 		Name:           overview.Name,
@@ -459,21 +457,21 @@ func (usersHandler *UsersHandler) GetMyPosts(w http.ResponseWriter, r *http.Requ
 		offset = 0
 	}
 	type JsonPost struct {
-		ID            uuid.UUID `json:"id"`
-		Title         string    `json:"title"`
-		Content       string    `json:"content"`
-		AuthorID      uuid.UUID `json:"author_id"`
-		UpVoted       int32     `json:"up_voted"`
-		DownVoted     int32     `json:"down_voted"`
-		CommentsCount int32     `json:"comments_count"`
-		CreatedAt     time.Time `json:"created_at"`
-		UpdatedAt     time.Time `json:"updated_at"`
-		AuthorName    string    `json:"author_name"`
-		AuthorEmail   string    `json:"author_email"`
-		AuthorImage   string    `json:"author_image"`
+		ID            pgtype.UUID      `json:"id"`
+		Title         string           `json:"title"`
+		Content       string           `json:"content"`
+		AuthorID      pgtype.UUID      `json:"author_id"`
+		UpVoted       int32            `json:"up_voted"`
+		DownVoted     int32            `json:"down_voted"`
+		CommentsCount int32            `json:"comments_count"`
+		CreatedAt     pgtype.Timestamp `json:"created_at"`
+		UpdatedAt     pgtype.Timestamp `json:"updated_at"`
+		AuthorName    string           `json:"author_name"`
+		AuthorEmail   string           `json:"author_email"`
+		AuthorImage   string           `json:"author_image"`
 	}
 	if sort == "hot" {
-		posts, _ := usersHandler.DB.GetUserHotPosts(r.Context(), database.GetUserHotPostsParams{ID: userUUID, Limit: int32(limit), Offset: int32(offset)})
+		posts, _ := usersHandler.DB.GetUserHotPosts(r.Context(), database.GetUserHotPostsParams{ID: pgtype.UUID{Bytes: userUUID, Valid: true}, Limit: int32(limit), Offset: int32(offset)})
 		jsonPosts := []JsonPost{}
 		for _, p := range posts {
 			jsonPosts = append(jsonPosts, JsonPost{
@@ -495,7 +493,7 @@ func (usersHandler *UsersHandler) GetMyPosts(w http.ResponseWriter, r *http.Requ
 		return
 	}
 	if sort == "top" {
-		posts, _ := usersHandler.DB.GetUserTopPosts(r.Context(), database.GetUserTopPostsParams{ID: userUUID, Limit: int32(limit), Offset: int32(offset)})
+		posts, _ := usersHandler.DB.GetUserTopPosts(r.Context(), database.GetUserTopPostsParams{ID: pgtype.UUID{Bytes: userUUID, Valid: true}, Limit: int32(limit), Offset: int32(offset)})
 		jsonPosts := []JsonPost{}
 		for _, p := range posts {
 			jsonPosts = append(jsonPosts, JsonPost{
@@ -516,7 +514,7 @@ func (usersHandler *UsersHandler) GetMyPosts(w http.ResponseWriter, r *http.Requ
 		resp.Json(w, 200, jsonPosts)
 		return
 	}
-	posts, _ := usersHandler.DB.GetUserNewPosts(r.Context(), database.GetUserNewPostsParams{ID: userUUID, Limit: int32(limit), Offset: int32(offset)})
+	posts, _ := usersHandler.DB.GetUserNewPosts(r.Context(), database.GetUserNewPostsParams{ID: pgtype.UUID{Bytes: userUUID, Valid: true}, Limit: int32(limit), Offset: int32(offset)})
 	jsonPosts := []JsonPost{}
 	for _, p := range posts {
 		jsonPosts = append(jsonPosts, JsonPost{
@@ -548,24 +546,24 @@ func (usersHandler *UsersHandler) GetOverview(w http.ResponseWriter, r *http.Req
 		resp.Err(w, 400, "invalid user_id")
 		return
 	}
-	overview, err := usersHandler.DB.GetUserOverview(r.Context(), userUUID)
+	overview, err := usersHandler.DB.GetUserOverview(r.Context(), pgtype.UUID{Bytes: userUUID, Valid: true})
 	if err != nil {
 		resp.Err(w, 404, "user not found")
 		return
 	}
 	resp.Json(w, 200, struct {
-		ID             uuid.UUID `json:"id"`
-		Name           string    `json:"name"`
-		Email          string    `json:"email"`
-		Image          string    `json:"image"`
-		Bio            string    `json:"bio"`
-		TotalPosts     int32     `json:"total_posts"`
-		TotalUpvoted   int32     `json:"total_upvoted"`
-		TotalDownvoted int32     `json:"total_downvoted"`
-		Follower       int32     `json:"follower"`
-		Following      int32     `json:"following"`
-		CreatedAt      time.Time `json:"created_at"`
-		UpdatedAt      time.Time `json:"updated_at"`
+		ID             pgtype.UUID      `json:"id"`
+		Name           string           `json:"name"`
+		Email          string           `json:"email"`
+		Image          string           `json:"image"`
+		Bio            string           `json:"bio"`
+		TotalPosts     int32            `json:"total_posts"`
+		TotalUpvoted   int32            `json:"total_upvoted"`
+		TotalDownvoted int32            `json:"total_downvoted"`
+		Follower       int32            `json:"follower"`
+		Following      int32            `json:"following"`
+		CreatedAt      pgtype.Timestamp `json:"created_at"`
+		UpdatedAt      pgtype.Timestamp `json:"updated_at"`
 	}{
 		ID:             overview.ID,
 		Name:           overview.Name,
@@ -604,21 +602,21 @@ func (usersHandler *UsersHandler) GetPosts(w http.ResponseWriter, r *http.Reques
 		offset = 0
 	}
 	type JsonPost struct {
-		ID            uuid.UUID `json:"id"`
-		Title         string    `json:"title"`
-		Content       string    `json:"content"`
-		AuthorID      uuid.UUID `json:"author_id"`
-		UpVoted       int32     `json:"up_voted"`
-		DownVoted     int32     `json:"down_voted"`
-		CommentsCount int32     `json:"comments_count"`
-		CreatedAt     time.Time `json:"created_at"`
-		UpdatedAt     time.Time `json:"updated_at"`
-		AuthorName    string    `json:"author_name"`
-		AuthorEmail   string    `json:"author_email"`
-		AuthorImage   string    `json:"author_image"`
+		ID            pgtype.UUID      `json:"id"`
+		Title         string           `json:"title"`
+		Content       string           `json:"content"`
+		AuthorID      pgtype.UUID      `json:"author_id"`
+		UpVoted       int32            `json:"up_voted"`
+		DownVoted     int32            `json:"down_voted"`
+		CommentsCount int32            `json:"comments_count"`
+		CreatedAt     pgtype.Timestamp `json:"created_at"`
+		UpdatedAt     pgtype.Timestamp `json:"updated_at"`
+		AuthorName    string           `json:"author_name"`
+		AuthorEmail   string           `json:"author_email"`
+		AuthorImage   string           `json:"author_image"`
 	}
 	if sort == "hot" {
-		posts, _ := usersHandler.DB.GetUserHotPosts(r.Context(), database.GetUserHotPostsParams{ID: userUUID, Limit: int32(limit), Offset: int32(offset)})
+		posts, _ := usersHandler.DB.GetUserHotPosts(r.Context(), database.GetUserHotPostsParams{ID: pgtype.UUID{Bytes: userUUID, Valid: true}, Limit: int32(limit), Offset: int32(offset)})
 		jsonPosts := []JsonPost{}
 		for _, p := range posts {
 			jsonPosts = append(jsonPosts, JsonPost{
@@ -640,7 +638,7 @@ func (usersHandler *UsersHandler) GetPosts(w http.ResponseWriter, r *http.Reques
 		return
 	}
 	if sort == "top" {
-		posts, _ := usersHandler.DB.GetUserTopPosts(r.Context(), database.GetUserTopPostsParams{ID: userUUID, Limit: int32(limit), Offset: int32(offset)})
+		posts, _ := usersHandler.DB.GetUserTopPosts(r.Context(), database.GetUserTopPostsParams{ID: pgtype.UUID{Bytes: userUUID, Valid: true}, Limit: int32(limit), Offset: int32(offset)})
 		jsonPosts := []JsonPost{}
 		for _, p := range posts {
 			jsonPosts = append(jsonPosts, JsonPost{
@@ -661,7 +659,7 @@ func (usersHandler *UsersHandler) GetPosts(w http.ResponseWriter, r *http.Reques
 		resp.Json(w, 200, jsonPosts)
 		return
 	}
-	posts, _ := usersHandler.DB.GetUserNewPosts(r.Context(), database.GetUserNewPostsParams{ID: userUUID, Limit: int32(limit), Offset: int32(offset)})
+	posts, _ := usersHandler.DB.GetUserNewPosts(r.Context(), database.GetUserNewPostsParams{ID: pgtype.UUID{Bytes: userUUID, Valid: true}, Limit: int32(limit), Offset: int32(offset)})
 	jsonPosts := []JsonPost{}
 	for _, p := range posts {
 		jsonPosts = append(jsonPosts, JsonPost{
@@ -697,10 +695,10 @@ func (usersHandler *UsersHandler) Follow(w http.ResponseWriter, r *http.Request)
 		return
 	}
 	err = usersHandler.DB.CreateFollows(r.Context(), database.CreateFollowsParams{
-		ID:         uuid.New(),
-		AuthorID:   userUUID,
-		FollowerID: follower_uuid,
-		CreatedAt:  time.Now(),
+		ID:         pgtype.UUID{Bytes: uuid.New(), Valid: true},
+		AuthorID:   pgtype.UUID{Bytes: userUUID, Valid: true},
+		FollowerID: pgtype.UUID{Bytes: follower_uuid, Valid: true},
+		CreatedAt:  pgtype.Timestamp{Time: time.Now(), InfinityModifier: pgtype.Finite, Valid: true},
 	})
 	if err != nil {
 		resp.Err(w, 400, err.Error())
@@ -726,8 +724,8 @@ func (usersHandler *UsersHandler) UnFollow(w http.ResponseWriter, r *http.Reques
 		return
 	}
 	err = usersHandler.DB.DeleteFollows(r.Context(), database.DeleteFollowsParams{
-		AuthorID:   userUUID,
-		FollowerID: follower_uuid,
+		AuthorID:   pgtype.UUID{Bytes: userUUID, Valid: true},
+		FollowerID: pgtype.UUID{Bytes: follower_uuid, Valid: true},
 	})
 	if err != nil {
 		resp.Err(w, 400, err.Error())
@@ -749,18 +747,18 @@ func (usersHandler *UsersHandler) CheckFollowed(w http.ResponseWriter, r *http.R
 		return
 	}
 	follow, err := usersHandler.DB.GetFollows(r.Context(), database.GetFollowsParams{
-		AuthorID:   userUUID,
-		FollowerID: follower_uuid,
+		AuthorID:   pgtype.UUID{Bytes: userUUID, Valid: true},
+		FollowerID: pgtype.UUID{Bytes: follower_uuid, Valid: true},
 	})
 	if err != nil {
 		resp.Err(w, 400, err.Error())
 		return
 	}
 	resp.Json(w, 200, struct {
-		ID         uuid.UUID `json:"id"`
-		FollowerID uuid.UUID `json:"follower_id"`
-		AuthorID   uuid.UUID `json:"author_id"`
-		CreatedAt  time.Time `json:"created_at"`
+		ID         pgtype.UUID      `json:"id"`
+		FollowerID pgtype.UUID      `json:"follower_id"`
+		AuthorID   pgtype.UUID      `json:"author_id"`
+		CreatedAt  pgtype.Timestamp `json:"created_at"`
 	}{
 		ID:         follow.ID,
 		FollowerID: follow.FollowerID,
@@ -784,7 +782,7 @@ func (usersHandler *UsersHandler) GetFollowedAuthor(w http.ResponseWriter, r *ht
 		offset = 0
 	}
 	followedAuthors, err := usersHandler.DB.GetFollowedAuthor(r.Context(), database.GetFollowedAuthorParams{
-		FollowerID: userUUID,
+		FollowerID: pgtype.UUID{Bytes: userUUID, Valid: true},
 		Limit:      int32(limit),
 		Offset:     int32(offset),
 	})
@@ -792,16 +790,7 @@ func (usersHandler *UsersHandler) GetFollowedAuthor(w http.ResponseWriter, r *ht
 		resp.Err(w, 400, err.Error())
 		return
 	}
-	ret := []models.Author{}
-	for _, a := range followedAuthors {
-		ret = append(ret, models.Author{
-			ID:    a.ID,
-			Email: a.Email,
-			Name:  a.Name,
-			Image: a.Image.String,
-		})
-	}
-	resp.Json(w, 200, ret)
+	resp.Json(w, 200, followedAuthors)
 }
 
 func (usersHandler *UsersHandler) GetTopAuthor(w http.ResponseWriter, r *http.Request) {
@@ -823,17 +812,5 @@ func (usersHandler *UsersHandler) GetTopAuthor(w http.ResponseWriter, r *http.Re
 		resp.Err(w, 400, err.Error())
 		return
 	}
-	ret := []models.Author{}
-	for _, a := range topAuthors {
-		ret = append(ret, models.Author{
-			ID:            a.AuthorID,
-			Email:         a.AuthorEmail,
-			Name:          a.AuthorName,
-			Image:         a.AuthorImage.String,
-			TotalPosts:    a.TotalPosts,
-			TotalUpvoted:  a.TotalUpvoted,
-			TotalFollower: a.TotalFollower,
-		})
-	}
-	resp.Json(w, 200, ret)
+	resp.Json(w, 200, topAuthors)
 }
