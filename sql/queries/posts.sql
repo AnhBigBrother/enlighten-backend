@@ -104,14 +104,47 @@ WHERE
   id = $1
 ;
 
--- name: GetPostVotes :one
+-- name: CheckPostInteracted :one
 SELECT
-  *
+  r.post_id,
+  CASE
+    WHEN l.voted IS NULL THEN 'none'
+    ELSE l.voted::TEXT
+  END AS voted,
+  CASE
+    WHEN l.saved IS NULL THEN FALSE
+    ELSE TRUE
+  END AS saved
 FROM
-  post_votes
-WHERE
-  post_id = $1
-  AND voter_id = $2
-LIMIT
-  1
+  (
+    SELECT
+      $2 AS post_id,
+      voted,
+      saved.id::TEXT AS saved
+    FROM
+      (
+        SELECT
+          voted,
+          post_id
+        FROM
+          post_votes
+        WHERE
+          voter_id = $1
+          AND post_id = $2
+      ) voted
+      FULL OUTER JOIN (
+        SELECT
+          id,
+          post_id
+        FROM
+          saved_posts
+        WHERE
+          user_id = $1
+          AND post_id = $2
+      ) saved ON voted.post_id = saved.post_id
+  ) l
+  RIGHT JOIN (
+    SELECT
+      $2::UUID AS post_id
+  ) r ON l.post_id = r.post_id
 ;

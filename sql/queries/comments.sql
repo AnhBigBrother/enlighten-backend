@@ -44,9 +44,9 @@ ORDER BY
 -- name: GetCommentsReplies :many
 SELECT
   pc.*,
-  u.email AS user_email,
-  u.name AS user_name,
-  u.image AS user_image
+  u.email AS author_email,
+  u.name AS author_name,
+  u.image AS author_image
 FROM
   (
     SELECT

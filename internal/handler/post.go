@@ -40,7 +40,7 @@ func (postsHandler *PostsHandler) GetFollowedPosts(w http.ResponseWriter, r *htt
 	sort, limitStr, offsetStr := queryParams.Get("sort"), queryParams.Get("limit"), queryParams.Get("offset")
 	limit, err := strconv.Atoi(limitStr)
 	if err != nil {
-		limit = 10
+		limit = 5
 	}
 	offset, err := strconv.Atoi(offsetStr)
 	if err != nil {
@@ -89,7 +89,7 @@ func (postsHandler *PostsHandler) GetAllPosts(w http.ResponseWriter, r *http.Req
 	sort, limitStr, offsetStr := queryParams.Get("sort"), queryParams.Get("limit"), queryParams.Get("offset")
 	limit, err := strconv.Atoi(limitStr)
 	if err != nil {
-		limit = 10
+		limit = 5
 	}
 	offset, err := strconv.Atoi(offsetStr)
 	if err != nil {
@@ -230,7 +230,7 @@ func (postsHandler *PostsHandler) DownVotePost(w http.ResponseWriter, r *http.Re
 	}{Message: "success"})
 }
 
-func (postsHandler *PostsHandler) CheckVoted(w http.ResponseWriter, r *http.Request) {
+func (postsHandler *PostsHandler) SavePost(w http.ResponseWriter, r *http.Request) {
 	postId := r.PathValue("post_id")
 	postUUID, err := uuid.Parse(postId)
 	if err != nil {
@@ -244,19 +244,99 @@ func (postsHandler *PostsHandler) CheckVoted(w http.ResponseWriter, r *http.Requ
 		resp.Err(w, 400, err.Error())
 		return
 	}
-	pv, err := postsHandler.DB.GetPostVotes(r.Context(), database.GetPostVotesParams{
-		PostID:  pgtype.UUID{Bytes: postUUID, Valid: true},
-		VoterID: pgtype.UUID{Bytes: authorUuid, Valid: true},
+	savedPost, err := postsHandler.DB.CreateSavedPost(r.Context(), database.CreateSavedPostParams{
+		ID:        pgtype.UUID{Bytes: uuid.New(), Valid: true},
+		UserID:    pgtype.UUID{Bytes: authorUuid, Valid: true},
+		PostID:    pgtype.UUID{Bytes: postUUID, Valid: true},
+		CreatedAt: pgtype.Timestamp{Time: time.Now(), InfinityModifier: pgtype.Finite, Valid: true},
 	})
 	if err != nil {
-		resp.Json(w, 200, struct {
-			Voted string `json:"voted"`
-		}{Voted: "none"})
+		resp.Err(w, 400, err.Error())
 		return
 	}
-	resp.Json(w, 200, struct {
-		Voted string `json:"voted"`
-	}{Voted: string(pv.Voted)})
+	resp.Json(w, 201, savedPost)
+}
+
+func (postsHandler *PostsHandler) UnSavePost(w http.ResponseWriter, r *http.Request) {
+	postId := r.PathValue("post_id")
+	postUUID, err := uuid.Parse(postId)
+	if err != nil {
+		resp.Err(w, 400, err.Error())
+		return
+	}
+	session, _ := r.Context().Value(cfg.CtxKeys.User).(map[string]interface{})
+	authorId, _ := session["jti"].(string)
+	authorUuid, err := uuid.Parse(authorId)
+	if err != nil {
+		resp.Err(w, 400, err.Error())
+		return
+	}
+	err = postsHandler.DB.DeleteSavedPost(r.Context(), database.DeleteSavedPostParams{
+		UserID: pgtype.UUID{Bytes: authorUuid, Valid: true},
+		PostID: pgtype.UUID{Bytes: postUUID, Valid: true},
+	})
+	if err != nil {
+		resp.Err(w, 400, err.Error())
+		return
+	}
+	resp.Json(w, 201, struct {
+		Message string `json:"message"`
+	}{Message: "Success"})
+}
+
+func (postsHandler *PostsHandler) GetAllSavedPost(w http.ResponseWriter, r *http.Request) {
+	queryParams := r.URL.Query()
+	limitStr, offsetStr := queryParams.Get("limit"), queryParams.Get("offset")
+	limit, err := strconv.Atoi(limitStr)
+	if err != nil {
+		limit = 5
+	}
+	offset, err := strconv.Atoi(offsetStr)
+	if err != nil {
+		offset = 0
+	}
+	session, _ := r.Context().Value(cfg.CtxKeys.User).(map[string]interface{})
+	userId, _ := session["jti"].(string)
+	userUuid, err := uuid.Parse(userId)
+	if err != nil {
+		resp.Err(w, 400, err.Error())
+		return
+	}
+	savedPosts, err := postsHandler.DB.GetAllSavedPosts(r.Context(), database.GetAllSavedPostsParams{
+		UserID: pgtype.UUID{Bytes: userUuid, Valid: true},
+		Limit:  int32(limit),
+		Offset: int32(offset),
+	})
+	if err != nil {
+		resp.Err(w, 404, err.Error())
+		return
+	}
+	resp.Json(w, 200, savedPosts)
+}
+
+func (postsHandler *PostsHandler) CheckPost(w http.ResponseWriter, r *http.Request) {
+	postId := r.PathValue("post_id")
+	postUUID, err := uuid.Parse(postId)
+	if err != nil {
+		resp.Err(w, 400, err.Error())
+		return
+	}
+	session, _ := r.Context().Value(cfg.CtxKeys.User).(map[string]interface{})
+	authorId, _ := session["jti"].(string)
+	authorUuid, err := uuid.Parse(authorId)
+	if err != nil {
+		resp.Err(w, 400, err.Error())
+		return
+	}
+	checked, err := postsHandler.DB.CheckPostInteracted(r.Context(), database.CheckPostInteractedParams{
+		VoterID: pgtype.UUID{Bytes: authorUuid, Valid: true},
+		PostID:  pgtype.UUID{Bytes: postUUID, Valid: true},
+	})
+	if err != nil {
+		resp.Err(w, 400, err.Error())
+		return
+	}
+	resp.Json(w, 200, checked)
 }
 
 func (postsHandler *PostsHandler) AddPostComment(w http.ResponseWriter, r *http.Request) {
@@ -298,7 +378,7 @@ func (postsHandler *PostsHandler) GetPostComments(w http.ResponseWriter, r *http
 	limitStr, offsetStr := queryParams.Get("limit"), queryParams.Get("offset")
 	limit, err := strconv.Atoi(limitStr)
 	if err != nil {
-		limit = 10
+		limit = 5
 	}
 	offset, err := strconv.Atoi(offsetStr)
 	if err != nil {

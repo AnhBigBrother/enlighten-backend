@@ -112,7 +112,7 @@ func (commentsHandler *CommentsHandler) DownVoteComment(w http.ResponseWriter, r
 	}{Message: "success"})
 }
 
-func (commentsHandler *CommentsHandler) CheckVoted(w http.ResponseWriter, r *http.Request) {
+func (commentsHandler *CommentsHandler) CheckComment(w http.ResponseWriter, r *http.Request) {
 	session, _ := r.Context().Value(cfg.CtxKeys.User).(map[string]interface{})
 	authorId, _ := session["jti"].(string)
 	authorUuid, err := uuid.Parse(authorId)

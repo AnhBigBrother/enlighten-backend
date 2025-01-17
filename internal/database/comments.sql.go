@@ -62,9 +62,9 @@ func (q *Queries) CreateComment(ctx context.Context, arg CreateCommentParams) (C
 const getCommentsReplies = `-- name: GetCommentsReplies :many
 SELECT
   pc.id, pc.comment, pc.author_id, pc.post_id, pc.parent_comment_id, pc.up_voted, pc.down_voted, pc.created_at,
-  u.email AS user_email,
-  u.name AS user_name,
-  u.image AS user_image
+  u.email AS author_email,
+  u.name AS author_name,
+  u.image AS author_image
 FROM
   (
     SELECT
@@ -100,9 +100,9 @@ type GetCommentsRepliesRow struct {
 	UpVoted         int32            `json:"up_voted"`
 	DownVoted       int32            `json:"down_voted"`
 	CreatedAt       pgtype.Timestamp `json:"created_at"`
-	UserEmail       pgtype.Text      `json:"user_email"`
-	UserName        pgtype.Text      `json:"user_name"`
-	UserImage       pgtype.Text      `json:"user_image"`
+	AuthorEmail     pgtype.Text      `json:"author_email"`
+	AuthorName      pgtype.Text      `json:"author_name"`
+	AuthorImage     pgtype.Text      `json:"author_image"`
 }
 
 func (q *Queries) GetCommentsReplies(ctx context.Context, arg GetCommentsRepliesParams) ([]GetCommentsRepliesRow, error) {
@@ -128,9 +128,9 @@ func (q *Queries) GetCommentsReplies(ctx context.Context, arg GetCommentsReplies
 			&i.UpVoted,
 			&i.DownVoted,
 			&i.CreatedAt,
-			&i.UserEmail,
-			&i.UserName,
-			&i.UserImage,
+			&i.AuthorEmail,
+			&i.AuthorName,
+			&i.AuthorImage,
 		); err != nil {
 			return nil, err
 		}

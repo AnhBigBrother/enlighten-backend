@@ -92,6 +92,13 @@ type PostVote struct {
 	CreatedAt pgtype.Timestamp `json:"created_at"`
 }
 
+type SavedPost struct {
+	ID        pgtype.UUID      `json:"id"`
+	UserID    pgtype.UUID      `json:"user_id"`
+	PostID    pgtype.UUID      `json:"post_id"`
+	CreatedAt pgtype.Timestamp `json:"created_at"`
+}
+
 type User struct {
 	ID           pgtype.UUID      `json:"id"`
 	Email        string           `json:"email"`

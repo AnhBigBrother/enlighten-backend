@@ -105,7 +105,11 @@ WITH
   ),
   total_follows AS (
     SELECT
-      *
+      *,
+      CASE
+        WHEN fr.author_id IS NULL THEN fg.follower_id
+        ELSE fr.author_id
+      END AS user_id
     FROM
       (
         SELECT
@@ -142,7 +146,7 @@ SELECT
   END::INTEGER AS "following"
 FROM
   total_interactions
-  LEFT JOIN total_follows ON total_interactions.id = total_follows.author_id
+  LEFT JOIN total_follows ON total_interactions.id = total_follows.user_id
 ;
 
 -- name: GetUserNewPosts :many
