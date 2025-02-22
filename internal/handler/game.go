@@ -4,9 +4,9 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/AnhBigBrother/enlighten-backend/pkg/parser"
-	"github.com/AnhBigBrother/enlighten-backend/pkg/resp"
-	"github.com/AnhBigBrother/enlighten-backend/pkg/sudoku"
+	"github.com/AnhBigBrother/enlighten-backend/internal/pkg/parser"
+	"github.com/AnhBigBrother/enlighten-backend/internal/pkg/resp"
+	"github.com/AnhBigBrother/enlighten-backend/internal/pkg/sudoku"
 )
 
 type Sudoku struct{}

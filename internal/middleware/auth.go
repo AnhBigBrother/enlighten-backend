@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"github.com/AnhBigBrother/enlighten-backend/cfg"
-	"github.com/AnhBigBrother/enlighten-backend/pkg/token"
+	"github.com/AnhBigBrother/enlighten-backend/internal/pkg/token"
 )
 
 func Auth(next http.Handler) http.Handler {

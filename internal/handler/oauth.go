@@ -9,9 +9,9 @@ import (
 
 	"github.com/AnhBigBrother/enlighten-backend/cfg"
 	"github.com/AnhBigBrother/enlighten-backend/internal/database"
-	"github.com/AnhBigBrother/enlighten-backend/pkg/parser"
-	"github.com/AnhBigBrother/enlighten-backend/pkg/resp"
-	"github.com/AnhBigBrother/enlighten-backend/pkg/token"
+	"github.com/AnhBigBrother/enlighten-backend/internal/pkg/parser"
+	"github.com/AnhBigBrother/enlighten-backend/internal/pkg/resp"
+	"github.com/AnhBigBrother/enlighten-backend/internal/pkg/token"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 )

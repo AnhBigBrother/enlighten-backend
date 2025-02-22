@@ -6,8 +6,8 @@ import (
 
 	"github.com/AnhBigBrother/enlighten-backend/cfg"
 	"github.com/AnhBigBrother/enlighten-backend/internal/database"
-	"github.com/AnhBigBrother/enlighten-backend/pkg/parser"
-	"github.com/AnhBigBrother/enlighten-backend/pkg/resp"
+	"github.com/AnhBigBrother/enlighten-backend/internal/pkg/parser"
+	"github.com/AnhBigBrother/enlighten-backend/internal/pkg/resp"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 )

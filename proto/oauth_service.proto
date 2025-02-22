@@ -1,0 +1,48 @@
+syntax = "proto3";
+
+package pb;
+
+option go_package = "github.com/AnhBigBrother/enlighten-backend/internal/pb";
+
+service Oauth {
+  rpc OauthGoogle(OauthGoogleRequest) returns (OauthGoogleResponse) {}
+  rpc OauthGithub(OauthGithubRequest) returns (OauthGithubResponse) {}
+  rpc OauthMicrosoft(OauthMicrosoftRequest) returns (OauthMicrosoftResponse) {}
+  rpc OauthDiscord(OauthDiscordRequest) returns (OauthDiscordResponse) {}
+}
+
+message OauthGoogleRequest {
+  string access_token = 1;
+  string token_type = 2;
+}
+message OauthGoogleResponse {
+  string access_token = 1;
+  string refresh_token = 2;
+}
+
+message OauthGithubRequest {
+  string access_token = 1;
+  string token_type = 2;
+}
+message OauthGithubResponse {
+  string access_token = 1;
+  string refresh_token = 2;
+}
+
+message OauthMicrosoftRequest {
+  string access_token = 1;
+  string token_type = 2;
+}
+message OauthMicrosoftResponse {
+  string access_token = 1;
+  string refresh_token = 2;
+}
+
+message OauthDiscordRequest {
+  string access_token = 1;
+  string token_type = 2;
+}
+message OauthDiscordResponse {
+  string access_token = 1;
+  string refresh_token = 2;
+}

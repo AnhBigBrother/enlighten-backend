@@ -4,7 +4,7 @@ import (
 	"net/http"
 
 	"github.com/AnhBigBrother/enlighten-backend/cfg"
-	"github.com/AnhBigBrother/enlighten-backend/pkg/resp"
+	"github.com/AnhBigBrother/enlighten-backend/internal/pkg/resp"
 )
 
 func Auth(handler http.HandlerFunc) http.HandlerFunc {

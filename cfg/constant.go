@@ -2,19 +2,18 @@ package cfg
 
 import (
 	"context"
+	"flag"
 	"log"
 	"os"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/joho/godotenv"
 
 	"github.com/AnhBigBrother/enlighten-backend/internal/database"
-	"github.com/joho/godotenv"
 )
 
-type contextKey string
-
 type contextKeys struct {
-	User contextKey
+	User string
 }
 
 var (
@@ -56,10 +55,25 @@ var (
 )
 
 func init() {
-	// err := godotenv.Load(".env.production")
-	err := godotenv.Load(".env")
-	if err != nil {
-		log.Fatal(err)
+	env := flag.String("env", "developement", "Set environment")
+
+	flag.Parse()
+
+	load(*env)
+}
+
+func load(env string) {
+	log.Println("Environment:", env)
+	if env == "production" {
+		err := godotenv.Load(".env.production")
+		if err != nil {
+			log.Fatal(err)
+		}
+	} else {
+		err := godotenv.Load(".env")
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 
 	dbUri := os.Getenv("DB_URI")
