@@ -12,8 +12,10 @@ import (
 	"github.com/AnhBigBrother/enlighten-backend/internal/database"
 )
 
-type contextKeys struct {
-	User string
+type KeyType string
+
+type ContextKeys struct {
+	User KeyType
 }
 
 var (
@@ -27,7 +29,7 @@ var (
 	AccessTokenAge  int
 	RefreshTokenAge int
 	CookieAge       int
-	CtxKeys         contextKeys
+	CtxKeys         ContextKeys
 
 	// GithubClientId       string
 	// GithubClientSecret   string
@@ -128,7 +130,7 @@ func load(env string) {
 	BackendUrl = backendUrl
 	JwtSecret = jwtSecret
 	Port = port
-	CtxKeys = contextKeys{
+	CtxKeys = ContextKeys{
 		User: "user",
 	}
 	AccessTokenAge = 30 * 60           // in second

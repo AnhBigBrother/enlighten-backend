@@ -19,13 +19,10 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	User_Signup_FullMethodName            = "/pb.User/Signup"
-	User_Signin_FullMethodName            = "/pb.User/Signin"
-	User_Signout_FullMethodName           = "/pb.User/Signout"
+	User_SignOut_FullMethodName           = "/pb.User/SignOut"
 	User_GetMe_FullMethodName             = "/pb.User/GetMe"
 	User_UpdateMe_FullMethodName          = "/pb.User/UpdateMe"
 	User_GetSession_FullMethodName        = "/pb.User/GetSession"
-	User_GetAccessToken_FullMethodName    = "/pb.User/GetAccessToken"
 	User_GetMyOverview_FullMethodName     = "/pb.User/GetMyOverview"
 	User_GetMyPost_FullMethodName         = "/pb.User/GetMyPost"
 	User_FollowUser_FullMethodName        = "/pb.User/FollowUser"
@@ -38,13 +35,10 @@ const (
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type UserClient interface {
-	Signup(ctx context.Context, in *SignupRequest, opts ...grpc.CallOption) (*SignupResponse, error)
-	Signin(ctx context.Context, in *SigninRequest, opts ...grpc.CallOption) (*SigninResponse, error)
-	Signout(ctx context.Context, in *SignoutRequest, opts ...grpc.CallOption) (*SignoutResponse, error)
+	SignOut(ctx context.Context, in *SignOutRequest, opts ...grpc.CallOption) (*SignOutResponse, error)
 	GetMe(ctx context.Context, in *GetMeRequest, opts ...grpc.CallOption) (*GetMeResponse, error)
 	UpdateMe(ctx context.Context, in *UpdateMeRequest, opts ...grpc.CallOption) (*UpdateMeResponse, error)
 	GetSession(ctx context.Context, in *GetSessionRequest, opts ...grpc.CallOption) (*GetSessionResponse, error)
-	GetAccessToken(ctx context.Context, in *GetAccessTokenRequest, opts ...grpc.CallOption) (*GetAccessTokenResponse, error)
 	GetMyOverview(ctx context.Context, in *GetMyOverviewRequest, opts ...grpc.CallOption) (*GetMyOverviewResponse, error)
 	GetMyPost(ctx context.Context, in *GetMyPostRequest, opts ...grpc.CallOption) (*GetMyPostResponse, error)
 	FollowUser(ctx context.Context, in *FollowUserRequest, opts ...grpc.CallOption) (*FollowUserResponse, error)
@@ -61,30 +55,10 @@ func NewUserClient(cc grpc.ClientConnInterface) UserClient {
 	return &userClient{cc}
 }
 
-func (c *userClient) Signup(ctx context.Context, in *SignupRequest, opts ...grpc.CallOption) (*SignupResponse, error) {
+func (c *userClient) SignOut(ctx context.Context, in *SignOutRequest, opts ...grpc.CallOption) (*SignOutResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(SignupResponse)
-	err := c.cc.Invoke(ctx, User_Signup_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *userClient) Signin(ctx context.Context, in *SigninRequest, opts ...grpc.CallOption) (*SigninResponse, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(SigninResponse)
-	err := c.cc.Invoke(ctx, User_Signin_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *userClient) Signout(ctx context.Context, in *SignoutRequest, opts ...grpc.CallOption) (*SignoutResponse, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(SignoutResponse)
-	err := c.cc.Invoke(ctx, User_Signout_FullMethodName, in, out, cOpts...)
+	out := new(SignOutResponse)
+	err := c.cc.Invoke(ctx, User_SignOut_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -115,16 +89,6 @@ func (c *userClient) GetSession(ctx context.Context, in *GetSessionRequest, opts
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(GetSessionResponse)
 	err := c.cc.Invoke(ctx, User_GetSession_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *userClient) GetAccessToken(ctx context.Context, in *GetAccessTokenRequest, opts ...grpc.CallOption) (*GetAccessTokenResponse, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(GetAccessTokenResponse)
-	err := c.cc.Invoke(ctx, User_GetAccessToken_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -195,13 +159,10 @@ func (c *userClient) GetFollowedUsers(ctx context.Context, in *GetFollowedUsersR
 // All implementations must embed UnimplementedUserServer
 // for forward compatibility.
 type UserServer interface {
-	Signup(context.Context, *SignupRequest) (*SignupResponse, error)
-	Signin(context.Context, *SigninRequest) (*SigninResponse, error)
-	Signout(context.Context, *SignoutRequest) (*SignoutResponse, error)
+	SignOut(context.Context, *SignOutRequest) (*SignOutResponse, error)
 	GetMe(context.Context, *GetMeRequest) (*GetMeResponse, error)
 	UpdateMe(context.Context, *UpdateMeRequest) (*UpdateMeResponse, error)
 	GetSession(context.Context, *GetSessionRequest) (*GetSessionResponse, error)
-	GetAccessToken(context.Context, *GetAccessTokenRequest) (*GetAccessTokenResponse, error)
 	GetMyOverview(context.Context, *GetMyOverviewRequest) (*GetMyOverviewResponse, error)
 	GetMyPost(context.Context, *GetMyPostRequest) (*GetMyPostResponse, error)
 	FollowUser(context.Context, *FollowUserRequest) (*FollowUserResponse, error)
@@ -218,14 +179,8 @@ type UserServer interface {
 // pointer dereference when methods are called.
 type UnimplementedUserServer struct{}
 
-func (UnimplementedUserServer) Signup(context.Context, *SignupRequest) (*SignupResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method Signup not implemented")
-}
-func (UnimplementedUserServer) Signin(context.Context, *SigninRequest) (*SigninResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method Signin not implemented")
-}
-func (UnimplementedUserServer) Signout(context.Context, *SignoutRequest) (*SignoutResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method Signout not implemented")
+func (UnimplementedUserServer) SignOut(context.Context, *SignOutRequest) (*SignOutResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SignOut not implemented")
 }
 func (UnimplementedUserServer) GetMe(context.Context, *GetMeRequest) (*GetMeResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetMe not implemented")
@@ -235,9 +190,6 @@ func (UnimplementedUserServer) UpdateMe(context.Context, *UpdateMeRequest) (*Upd
 }
 func (UnimplementedUserServer) GetSession(context.Context, *GetSessionRequest) (*GetSessionResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetSession not implemented")
-}
-func (UnimplementedUserServer) GetAccessToken(context.Context, *GetAccessTokenRequest) (*GetAccessTokenResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method GetAccessToken not implemented")
 }
 func (UnimplementedUserServer) GetMyOverview(context.Context, *GetMyOverviewRequest) (*GetMyOverviewResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetMyOverview not implemented")
@@ -278,56 +230,20 @@ func RegisterUserServer(s grpc.ServiceRegistrar, srv UserServer) {
 	s.RegisterService(&User_ServiceDesc, srv)
 }
 
-func _User_Signup_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(SignupRequest)
+func _User_SignOut_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SignOutRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(UserServer).Signup(ctx, in)
+		return srv.(UserServer).SignOut(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: User_Signup_FullMethodName,
+		FullMethod: User_SignOut_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(UserServer).Signup(ctx, req.(*SignupRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _User_Signin_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(SigninRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(UserServer).Signin(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: User_Signin_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(UserServer).Signin(ctx, req.(*SigninRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _User_Signout_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(SignoutRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(UserServer).Signout(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: User_Signout_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(UserServer).Signout(ctx, req.(*SignoutRequest))
+		return srv.(UserServer).SignOut(ctx, req.(*SignOutRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -382,24 +298,6 @@ func _User_GetSession_Handler(srv interface{}, ctx context.Context, dec func(int
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(UserServer).GetSession(ctx, req.(*GetSessionRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _User_GetAccessToken_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(GetAccessTokenRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(UserServer).GetAccessToken(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: User_GetAccessToken_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(UserServer).GetAccessToken(ctx, req.(*GetAccessTokenRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -520,16 +418,8 @@ var User_ServiceDesc = grpc.ServiceDesc{
 	HandlerType: (*UserServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
-			MethodName: "Signup",
-			Handler:    _User_Signup_Handler,
-		},
-		{
-			MethodName: "Signin",
-			Handler:    _User_Signin_Handler,
-		},
-		{
-			MethodName: "Signout",
-			Handler:    _User_Signout_Handler,
+			MethodName: "SignOut",
+			Handler:    _User_SignOut_Handler,
 		},
 		{
 			MethodName: "GetMe",
@@ -542,10 +432,6 @@ var User_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetSession",
 			Handler:    _User_GetSession_Handler,
-		},
-		{
-			MethodName: "GetAccessToken",
-			Handler:    _User_GetAccessToken_Handler,
 		},
 		{
 			MethodName: "GetMyOverview",

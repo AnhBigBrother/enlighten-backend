@@ -2,10 +2,10 @@ package sudoku
 
 import "errors"
 
-func Solve(board [][]int) ([][]int, error) {
-	cloneBoard := [][]int{}
+func Solve(board [][]int32) ([][]int32, error) {
+	cloneBoard := [][]int32{}
 	for i := 0; i < 9; i++ {
-		row := []int{}
+		row := []int32{}
 		for j := 0; j < 9; j++ {
 			row = append(row, board[i][j])
 		}
@@ -31,8 +31,8 @@ func Solve(board [][]int) ([][]int, error) {
 		}
 	}
 	flag := false
-	var backtrack func(idx int)
-	backtrack = func(idx int) {
+	var backtrack func(idx int32)
+	backtrack = func(idx int32) {
 		if idx > 80 || flag {
 			flag = true
 			return
@@ -40,7 +40,7 @@ func Solve(board [][]int) ([][]int, error) {
 		i, j := idx/9, idx%9
 		b := (i/3)*3 + j/3
 		if cloneBoard[i][j] == 0 {
-			for x := 1; x <= 9; x++ {
+			for x := int32(1); x <= 9; x++ {
 				if !row[i][x] && !col[j][x] && !box[b][x] {
 					cloneBoard[i][j] = x
 					row[i][x] = true

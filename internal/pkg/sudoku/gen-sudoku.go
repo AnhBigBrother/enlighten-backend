@@ -2,16 +2,16 @@ package sudoku
 
 import "math/rand/v2"
 
-func Gen(hide int) [][]int {
-	board := [][]int{}
+func Gen(hide int32) [][]int32 {
+	board := [][]int32{}
 	for i := 0; i < 9; i++ {
-		board = append(board, make([]int, 9))
+		board = append(board, make([]int32, 9))
 	}
 	box1 := rand.Perm(9)
-	idx := 0
+	idx := int32(0)
 	for i := 0; i < 3; i++ {
 		for j := 0; j < 3; j++ {
-			board[i][j] = box1[idx] + 1
+			board[i][j] = int32(box1[idx]) + 1
 			idx++
 		}
 	}
@@ -19,7 +19,7 @@ func Gen(hide int) [][]int {
 	idx = 0
 	for i := 3; i < 6; i++ {
 		for j := 3; j < 6; j++ {
-			board[i][j] = box2[idx] + 1
+			board[i][j] = int32(box2[idx]) + 1
 			idx++
 		}
 	}
@@ -27,13 +27,13 @@ func Gen(hide int) [][]int {
 	idx = 0
 	for i := 6; i < 9; i++ {
 		for j := 6; j < 9; j++ {
-			board[i][j] = box3[idx] + 1
+			board[i][j] = int32(box3[idx]) + 1
 			idx++
 		}
 	}
 	board, _ = Solve(board)
 	hidePos := rand.Perm(81)
-	for i := 0; i < hide && i < 81; i++ {
+	for i := int32(0); i < hide && i < 81; i++ {
 		x, y := hidePos[i]/9, hidePos[i]%9
 		board[x][y] = 0
 	}

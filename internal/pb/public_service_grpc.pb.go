@@ -19,24 +19,32 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
+	Public_SignUp_FullMethodName            = "/pb.Public/SignUp"
+	Public_SignIn_FullMethodName            = "/pb.Public/SignIn"
+	Public_GetAccessToken_FullMethodName    = "/pb.Public/GetAccessToken"
 	Public_GetUserOverview_FullMethodName   = "/pb.Public/GetUserOverview"
-	Public_GetUSerPosts_FullMethodName      = "/pb.Public/GetUSerPosts"
+	Public_GetUserPosts_FullMethodName      = "/pb.Public/GetUserPosts"
 	Public_GetAllPosts_FullMethodName       = "/pb.Public/GetAllPosts"
 	Public_GetPostById_FullMethodName       = "/pb.Public/GetPostById"
 	Public_GetPostComments_FullMethodName   = "/pb.Public/GetPostComments"
 	Public_GetCommentReplies_FullMethodName = "/pb.Public/GetCommentReplies"
+	Public_GetTopUsers_FullMethodName       = "/pb.Public/GetTopUsers"
 )
 
 // PublicClient is the client API for Public service.
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type PublicClient interface {
+	SignUp(ctx context.Context, in *SignUpRequest, opts ...grpc.CallOption) (*SignUpResponse, error)
+	SignIn(ctx context.Context, in *SignInRequest, opts ...grpc.CallOption) (*SignInResponse, error)
+	GetAccessToken(ctx context.Context, in *GetAccessTokenRequest, opts ...grpc.CallOption) (*GetAccessTokenResponse, error)
 	GetUserOverview(ctx context.Context, in *GetUserOverviewRequest, opts ...grpc.CallOption) (*GetUserOverviewResponse, error)
-	GetUSerPosts(ctx context.Context, in *GetUserPostsRequest, opts ...grpc.CallOption) (*GetUserPostsResponse, error)
+	GetUserPosts(ctx context.Context, in *GetUserPostsRequest, opts ...grpc.CallOption) (*GetUserPostsResponse, error)
 	GetAllPosts(ctx context.Context, in *GetAllPostsRequest, opts ...grpc.CallOption) (*GetAllPostsResponse, error)
 	GetPostById(ctx context.Context, in *GetPostByIdRequest, opts ...grpc.CallOption) (*GetPostByIdResponse, error)
 	GetPostComments(ctx context.Context, in *GetPostCommentsRequest, opts ...grpc.CallOption) (*GetPostCommentsResponse, error)
 	GetCommentReplies(ctx context.Context, in *GetCommentRepliesRequest, opts ...grpc.CallOption) (*GetCommentRepliesResponse, error)
+	GetTopUsers(ctx context.Context, in *GetTopUsersRequest, opts ...grpc.CallOption) (*GetTopUsersResponse, error)
 }
 
 type publicClient struct {
@@ -45,6 +53,36 @@ type publicClient struct {
 
 func NewPublicClient(cc grpc.ClientConnInterface) PublicClient {
 	return &publicClient{cc}
+}
+
+func (c *publicClient) SignUp(ctx context.Context, in *SignUpRequest, opts ...grpc.CallOption) (*SignUpResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(SignUpResponse)
+	err := c.cc.Invoke(ctx, Public_SignUp_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *publicClient) SignIn(ctx context.Context, in *SignInRequest, opts ...grpc.CallOption) (*SignInResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(SignInResponse)
+	err := c.cc.Invoke(ctx, Public_SignIn_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *publicClient) GetAccessToken(ctx context.Context, in *GetAccessTokenRequest, opts ...grpc.CallOption) (*GetAccessTokenResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetAccessTokenResponse)
+	err := c.cc.Invoke(ctx, Public_GetAccessToken_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
 }
 
 func (c *publicClient) GetUserOverview(ctx context.Context, in *GetUserOverviewRequest, opts ...grpc.CallOption) (*GetUserOverviewResponse, error) {
@@ -57,10 +95,10 @@ func (c *publicClient) GetUserOverview(ctx context.Context, in *GetUserOverviewR
 	return out, nil
 }
 
-func (c *publicClient) GetUSerPosts(ctx context.Context, in *GetUserPostsRequest, opts ...grpc.CallOption) (*GetUserPostsResponse, error) {
+func (c *publicClient) GetUserPosts(ctx context.Context, in *GetUserPostsRequest, opts ...grpc.CallOption) (*GetUserPostsResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(GetUserPostsResponse)
-	err := c.cc.Invoke(ctx, Public_GetUSerPosts_FullMethodName, in, out, cOpts...)
+	err := c.cc.Invoke(ctx, Public_GetUserPosts_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -107,16 +145,30 @@ func (c *publicClient) GetCommentReplies(ctx context.Context, in *GetCommentRepl
 	return out, nil
 }
 
+func (c *publicClient) GetTopUsers(ctx context.Context, in *GetTopUsersRequest, opts ...grpc.CallOption) (*GetTopUsersResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetTopUsersResponse)
+	err := c.cc.Invoke(ctx, Public_GetTopUsers_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // PublicServer is the server API for Public service.
 // All implementations must embed UnimplementedPublicServer
 // for forward compatibility.
 type PublicServer interface {
+	SignUp(context.Context, *SignUpRequest) (*SignUpResponse, error)
+	SignIn(context.Context, *SignInRequest) (*SignInResponse, error)
+	GetAccessToken(context.Context, *GetAccessTokenRequest) (*GetAccessTokenResponse, error)
 	GetUserOverview(context.Context, *GetUserOverviewRequest) (*GetUserOverviewResponse, error)
-	GetUSerPosts(context.Context, *GetUserPostsRequest) (*GetUserPostsResponse, error)
+	GetUserPosts(context.Context, *GetUserPostsRequest) (*GetUserPostsResponse, error)
 	GetAllPosts(context.Context, *GetAllPostsRequest) (*GetAllPostsResponse, error)
 	GetPostById(context.Context, *GetPostByIdRequest) (*GetPostByIdResponse, error)
 	GetPostComments(context.Context, *GetPostCommentsRequest) (*GetPostCommentsResponse, error)
 	GetCommentReplies(context.Context, *GetCommentRepliesRequest) (*GetCommentRepliesResponse, error)
+	GetTopUsers(context.Context, *GetTopUsersRequest) (*GetTopUsersResponse, error)
 	mustEmbedUnimplementedPublicServer()
 }
 
@@ -127,11 +179,20 @@ type PublicServer interface {
 // pointer dereference when methods are called.
 type UnimplementedPublicServer struct{}
 
+func (UnimplementedPublicServer) SignUp(context.Context, *SignUpRequest) (*SignUpResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SignUp not implemented")
+}
+func (UnimplementedPublicServer) SignIn(context.Context, *SignInRequest) (*SignInResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SignIn not implemented")
+}
+func (UnimplementedPublicServer) GetAccessToken(context.Context, *GetAccessTokenRequest) (*GetAccessTokenResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetAccessToken not implemented")
+}
 func (UnimplementedPublicServer) GetUserOverview(context.Context, *GetUserOverviewRequest) (*GetUserOverviewResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetUserOverview not implemented")
 }
-func (UnimplementedPublicServer) GetUSerPosts(context.Context, *GetUserPostsRequest) (*GetUserPostsResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method GetUSerPosts not implemented")
+func (UnimplementedPublicServer) GetUserPosts(context.Context, *GetUserPostsRequest) (*GetUserPostsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetUserPosts not implemented")
 }
 func (UnimplementedPublicServer) GetAllPosts(context.Context, *GetAllPostsRequest) (*GetAllPostsResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetAllPosts not implemented")
@@ -144,6 +205,9 @@ func (UnimplementedPublicServer) GetPostComments(context.Context, *GetPostCommen
 }
 func (UnimplementedPublicServer) GetCommentReplies(context.Context, *GetCommentRepliesRequest) (*GetCommentRepliesResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetCommentReplies not implemented")
+}
+func (UnimplementedPublicServer) GetTopUsers(context.Context, *GetTopUsersRequest) (*GetTopUsersResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetTopUsers not implemented")
 }
 func (UnimplementedPublicServer) mustEmbedUnimplementedPublicServer() {}
 func (UnimplementedPublicServer) testEmbeddedByValue()                {}
@@ -166,6 +230,60 @@ func RegisterPublicServer(s grpc.ServiceRegistrar, srv PublicServer) {
 	s.RegisterService(&Public_ServiceDesc, srv)
 }
 
+func _Public_SignUp_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SignUpRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(PublicServer).SignUp(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Public_SignUp_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(PublicServer).SignUp(ctx, req.(*SignUpRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Public_SignIn_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SignInRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(PublicServer).SignIn(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Public_SignIn_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(PublicServer).SignIn(ctx, req.(*SignInRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Public_GetAccessToken_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetAccessTokenRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(PublicServer).GetAccessToken(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Public_GetAccessToken_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(PublicServer).GetAccessToken(ctx, req.(*GetAccessTokenRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _Public_GetUserOverview_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(GetUserOverviewRequest)
 	if err := dec(in); err != nil {
@@ -184,20 +302,20 @@ func _Public_GetUserOverview_Handler(srv interface{}, ctx context.Context, dec f
 	return interceptor(ctx, in, info, handler)
 }
 
-func _Public_GetUSerPosts_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _Public_GetUserPosts_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(GetUserPostsRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(PublicServer).GetUSerPosts(ctx, in)
+		return srv.(PublicServer).GetUserPosts(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: Public_GetUSerPosts_FullMethodName,
+		FullMethod: Public_GetUserPosts_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(PublicServer).GetUSerPosts(ctx, req.(*GetUserPostsRequest))
+		return srv.(PublicServer).GetUserPosts(ctx, req.(*GetUserPostsRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -274,6 +392,24 @@ func _Public_GetCommentReplies_Handler(srv interface{}, ctx context.Context, dec
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Public_GetTopUsers_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetTopUsersRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(PublicServer).GetTopUsers(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Public_GetTopUsers_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(PublicServer).GetTopUsers(ctx, req.(*GetTopUsersRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // Public_ServiceDesc is the grpc.ServiceDesc for Public service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -282,12 +418,24 @@ var Public_ServiceDesc = grpc.ServiceDesc{
 	HandlerType: (*PublicServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
+			MethodName: "SignUp",
+			Handler:    _Public_SignUp_Handler,
+		},
+		{
+			MethodName: "SignIn",
+			Handler:    _Public_SignIn_Handler,
+		},
+		{
+			MethodName: "GetAccessToken",
+			Handler:    _Public_GetAccessToken_Handler,
+		},
+		{
 			MethodName: "GetUserOverview",
 			Handler:    _Public_GetUserOverview_Handler,
 		},
 		{
-			MethodName: "GetUSerPosts",
-			Handler:    _Public_GetUSerPosts_Handler,
+			MethodName: "GetUserPosts",
+			Handler:    _Public_GetUserPosts_Handler,
 		},
 		{
 			MethodName: "GetAllPosts",
@@ -304,6 +452,10 @@ var Public_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetCommentReplies",
 			Handler:    _Public_GetCommentReplies_Handler,
+		},
+		{
+			MethodName: "GetTopUsers",
+			Handler:    _Public_GetTopUsers_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

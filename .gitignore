@@ -1,2 +1,9 @@
+# env files
 .env*
+
+# binary files
 bin
+
+# certificates
+*.pem
+*.srl

@@ -13,7 +13,6 @@ require golang.org/x/crypto v0.31.0
 
 require (
 	github.com/jackc/pgx/v5 v5.7.2
-	github.com/rs/cors v1.11.1
 	golang.org/x/exp v0.0.0-20241108190413-2d47ceb2692f
 	google.golang.org/grpc v1.70.0
 	google.golang.org/protobuf v1.36.5

@@ -11,6 +11,12 @@ service Oauth {
   rpc OauthDiscord(OauthDiscordRequest) returns (OauthDiscordResponse) {}
 }
 
+message OauthUserData {
+  string email = 1;
+  string name = 2;
+  string image = 3;
+}
+
 message OauthGoogleRequest {
   string access_token = 1;
   string token_type = 2;
@@ -18,6 +24,7 @@ message OauthGoogleRequest {
 message OauthGoogleResponse {
   string access_token = 1;
   string refresh_token = 2;
+  OauthUserData user = 3;
 }
 
 message OauthGithubRequest {
@@ -27,6 +34,7 @@ message OauthGithubRequest {
 message OauthGithubResponse {
   string access_token = 1;
   string refresh_token = 2;
+  OauthUserData user = 3;
 }
 
 message OauthMicrosoftRequest {
@@ -36,6 +44,7 @@ message OauthMicrosoftRequest {
 message OauthMicrosoftResponse {
   string access_token = 1;
   string refresh_token = 2;
+  OauthUserData user = 3;
 }
 
 message OauthDiscordRequest {
@@ -45,4 +54,5 @@ message OauthDiscordRequest {
 message OauthDiscordResponse {
   string access_token = 1;
   string refresh_token = 2;
+  OauthUserData user = 3;
 }

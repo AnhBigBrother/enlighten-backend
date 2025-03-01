@@ -2,8 +2,6 @@ syntax = "proto3";
 
 package pb;
 
-import "google/protobuf/timestamp.proto";
-
 option go_package = "github.com/AnhBigBrother/enlighten-backend/internal/pb";
 
 enum Voted {
@@ -26,16 +24,16 @@ message PostData {
   uint32 upvote = 5;
   uint32 downvote = 6;
   uint32 comments = 7;
-  google.protobuf.Timestamp created_at = 8;
-  google.protobuf.Timestamp updated_at = 9;
+  uint64 created_at = 8;
+  uint64 updated_at = 9;
 }
 message CommentData {
   string id = 1;
   string comment = 2;
-  string author_id = 3;
+  UserBaseInfo author = 3;
   string post_id = 4;
   string parent_comment_id = 5;
   uint32 upvote = 6;
   uint32 downvote = 7;
-  google.protobuf.Timestamp created_at = 8;
+  uint64 created_at = 8;
 }

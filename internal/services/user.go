@@ -8,145 +8,33 @@ import (
 	"github.com/AnhBigBrother/enlighten-backend/cfg"
 	"github.com/AnhBigBrother/enlighten-backend/internal/database"
 	"github.com/AnhBigBrother/enlighten-backend/internal/pb"
-	"github.com/AnhBigBrother/enlighten-backend/internal/pkg/token"
+	jwtToken "github.com/AnhBigBrother/enlighten-backend/internal/pkg/jwt-token"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"golang.org/x/crypto/bcrypt"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 type UserServer struct {
-	DB *database.Queries
+	pb.UnimplementedUserServer
+	DBQueries    *database.Queries
+	DBConnection *pgxpool.Pool
 }
 
 func NewUserServer() *UserServer {
 	return &UserServer{
-		DB: cfg.DBQueries,
+		DBQueries:    cfg.DBQueries,
+		DBConnection: cfg.DBConnection,
 	}
 }
 
-func (server *UserServer) Signup(ctx context.Context, req *pb.SignupRequest) (*pb.SignupResponse, error) {
-	if req.GetEmail() == "" || req.GetName() == "" || req.GetPassword() == "" {
-		return nil, status.Error(codes.InvalidArgument, "missing some of parameters: Email, Name, Password")
-	}
-	userId := uuid.New()
-	currentTime := time.Now()
-	hashedPassword, _ := bcrypt.GenerateFromPassword([]byte(req.GetPassword()), bcrypt.DefaultCost)
-
-	refresh_token, err := token.Sign(token.Claims{
-		Email: req.GetEmail(),
-		Name:  req.GetName(),
-		RegisteredClaims: jwt.RegisteredClaims{
-			IssuedAt:  jwt.NewNumericDate(currentTime),
-			ExpiresAt: jwt.NewNumericDate(currentTime.Add(time.Duration(cfg.RefreshTokenAge) * time.Second)),
-			ID:        userId.String(),
-			Subject:   "refresh_token",
-		},
-	})
-	if err != nil {
-		return nil, status.Error(codes.Unimplemented, err.Error())
-	}
-
-	createUserParams := database.CreateUserParams{
-		ID:           pgtype.UUID{Bytes: userId, Valid: true},
-		Email:        req.GetEmail(),
-		Name:         req.GetName(),
-		Password:     string(hashedPassword),
-		RefreshToken: pgtype.Text{String: refresh_token, Valid: true},
-		CreatedAt:    pgtype.Timestamp{Time: currentTime, InfinityModifier: pgtype.Finite, Valid: true},
-		UpdatedAt:    pgtype.Timestamp{Time: currentTime, InfinityModifier: pgtype.Finite, Valid: true},
-	}
-	if req.GetImage() != "" {
-		createUserParams.Image = pgtype.Text{String: req.GetImage(), Valid: true}
-	}
-	_, err = server.DB.CreateUser(ctx, createUserParams)
-	if err != nil {
-		return nil, status.Error(codes.Unimplemented, err.Error())
-	}
-
-	access_token, err := token.Sign(token.Claims{
-		Email: req.GetEmail(),
-		Name:  req.GetName(),
-		Image: req.GetImage(),
-		RegisteredClaims: jwt.RegisteredClaims{
-			IssuedAt:  jwt.NewNumericDate(currentTime),
-			ExpiresAt: jwt.NewNumericDate(currentTime.Add(time.Duration(cfg.AccessTokenAge) * time.Second)),
-			ID:        userId.String(),
-			Subject:   "access_token",
-		},
-	})
-	if err != nil {
-		return nil, status.Error(codes.Unimplemented, err.Error())
-	}
-
-	return &pb.SignupResponse{
-		AccessToken:  access_token,
-		RefreshToken: refresh_token,
-	}, nil
-}
-
-func (server *UserServer) Signin(ctx context.Context, req *pb.SigninRequest) (*pb.SigninResponse, error) {
-	if req.GetEmail() == "" || req.GetPassword() == "" {
-		return nil, status.Error(codes.InvalidArgument, "missing some of parameters: Email, Name, Password")
-	}
-	user, err := server.DB.FindUserByEmail(ctx, req.GetEmail())
-	if err != nil {
-		return nil, status.Error(codes.NotFound, err.Error())
-	}
-	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(req.GetPassword())); err != nil {
-		return nil, status.Error(codes.NotFound, err.Error())
-	}
-
-	currentTime := time.Now()
-	access_token, err := token.Sign(token.Claims{
-		Email: req.GetEmail(),
-		Name:  user.Name,
-		Image: user.Image.String,
-		RegisteredClaims: jwt.RegisteredClaims{
-			IssuedAt:  jwt.NewNumericDate(currentTime),
-			ExpiresAt: jwt.NewNumericDate(currentTime.Add(time.Duration(cfg.AccessTokenAge) * time.Second)),
-			ID:        user.ID.String(),
-			Subject:   "access_token",
-		},
-	})
-	if err != nil {
-		return nil, status.Error(codes.Unimplemented, err.Error())
-	}
-	refresh_token, err := token.Sign(token.Claims{
-		Email: req.GetEmail(),
-		Name:  user.Name,
-		RegisteredClaims: jwt.RegisteredClaims{
-			IssuedAt:  jwt.NewNumericDate(currentTime),
-			ExpiresAt: jwt.NewNumericDate(currentTime.Add(time.Duration(cfg.RefreshTokenAge) * time.Second)),
-			ID:        user.ID.String(),
-			Subject:   "refresh_token",
-		},
-	})
-	if err != nil {
-		return nil, status.Error(codes.Unimplemented, err.Error())
-	}
-
-	_, err = server.DB.UpdateUserRefreshToken(ctx, database.UpdateUserRefreshTokenParams{
-		Email:        req.GetEmail(),
-		RefreshToken: pgtype.Text{String: refresh_token, Valid: true},
-	})
-	if err != nil {
-		return nil, status.Error(codes.Unknown, err.Error())
-	}
-
-	return &pb.SigninResponse{
-		AccessToken:  access_token,
-		RefreshToken: refresh_token,
-	}, nil
-}
-
-func (server *UserServer) Signout(ctx context.Context, req *pb.SignoutRequest) (*pb.SignoutResponse, error) {
+func (server *UserServer) SignOut(ctx context.Context, req *pb.SignOutRequest) (*pb.SignOutResponse, error) {
 	userSession := ctx.Value(cfg.CtxKeys.User).(map[string]interface{})
 	userEmail := userSession["email"].(string)
-	_, err := server.DB.UpdateUserRefreshToken(ctx, database.UpdateUserRefreshTokenParams{
+	_, err := server.DBQueries.UpdateUserRefreshToken(ctx, database.UpdateUserRefreshTokenParams{
 		Email:        userEmail,
 		RefreshToken: pgtype.Text{Valid: false},
 	})
@@ -154,15 +42,15 @@ func (server *UserServer) Signout(ctx context.Context, req *pb.SignoutRequest) (
 		return nil, status.Error(codes.Unimplemented, err.Error())
 	}
 
-	return &pb.SignoutResponse{
-		Mesasge: "success",
+	return &pb.SignOutResponse{
+		Message: "success",
 	}, nil
 }
 
 func (server *UserServer) GetMe(ctx context.Context, req *pb.GetMeRequest) (*pb.GetMeResponse, error) {
 	userSession := ctx.Value(cfg.CtxKeys.User).(map[string]interface{})
 	userEmail := userSession["email"].(string)
-	user, err := server.DB.FindUserByEmail(ctx, userEmail)
+	user, err := server.DBQueries.FindUserByEmail(ctx, userEmail)
 	if err != nil {
 		return nil, status.Error(codes.NotFound, err.Error())
 	}
@@ -173,8 +61,8 @@ func (server *UserServer) GetMe(ctx context.Context, req *pb.GetMeRequest) (*pb.
 		Image:        user.Image.String,
 		Bio:          user.Bio.String,
 		RefreshToken: user.RefreshToken.String,
-		CreatedAt:    timestamppb.New(user.CreatedAt.Time),
-		UpdateMedAt:  timestamppb.New(user.UpdatedAt.Time),
+		CreatedAt:    uint64(user.CreatedAt.Time.Second()),
+		UpdateMedAt:  uint64(user.UpdatedAt.Time.Second()),
 	}, nil
 }
 
@@ -202,7 +90,7 @@ func (server *UserServer) UpdateMe(ctx context.Context, req *pb.UpdateMeRequest)
 	}
 	userSession := ctx.Value(cfg.CtxKeys.User).(map[string]interface{})
 	userEmail := userSession["email"].(string)
-	user, err := server.DB.FindUserByEmail(ctx, userEmail)
+	user, err := server.DBQueries.FindUserByEmail(ctx, userEmail)
 	if err != nil {
 		return nil, status.Error(codes.NotFound, err.Error())
 	}
@@ -226,11 +114,11 @@ func (server *UserServer) UpdateMe(ctx context.Context, req *pb.UpdateMeRequest)
 	if len(req.GetBio()) > 0 {
 		updateUserInfoParams.Bio = pgtype.Text{String: req.GetBio(), Valid: true}
 	}
-	_, err = server.DB.UpdateUserInfo(ctx, updateUserInfoParams)
+	_, err = server.DBQueries.UpdateUserInfo(ctx, updateUserInfoParams)
 	if err != nil {
 		return nil, status.Error(codes.Unimplemented, err.Error())
 	}
-	access_token, err := token.Sign(token.Claims{
+	access_token, err := jwtToken.Sign(jwtToken.Claims{
 		Email: user.Email,
 		Name:  user.Name,
 		Image: user.Image.String,
@@ -256,50 +144,11 @@ func (server *UserServer) GetSession(ctx context.Context, req *pb.GetSessionRequ
 	return &pb.GetSessionResponse{
 		Jti:   userSession["jti"].(string),
 		Sub:   userSession["sub"].(string),
-		Exp:   timestamppb.New(userSession["exp"].(*jwt.NumericDate).Time),
-		Iat:   timestamppb.New(userSession["iat"].(*jwt.NumericDate).Time),
+		Exp:   uint64(userSession["exp"].(float64)),
+		Iat:   uint64(userSession["iat"].(float64)),
 		Email: userSession["email"].(string),
 		Name:  userSession["name"].(string),
 		Image: userSession["image"].(string),
-	}, nil
-}
-
-func (server *UserServer) GetAccessToken(ctx context.Context, req *pb.GetAccessTokenRequest) (*pb.GetAccessTokenResponse, error) {
-	refresh_token := req.GetRefreshToken()
-	if refresh_token == "" {
-		return nil, status.Error(codes.InvalidArgument, "missing refresh_token")
-	}
-	claims, err := token.Parse(refresh_token)
-	if err != nil {
-		return nil, status.Error(codes.Unimplemented, err.Error())
-	}
-
-	currentTime := time.Now()
-	if int64(claims["exp"].(float64)) < currentTime.Unix() {
-		return nil, status.Error(codes.Unavailable, "refresh_token expired")
-	}
-	user, err := server.DB.FindUserByEmail(ctx, claims["email"].(string))
-	if err != nil {
-		return nil, status.Error(codes.NotFound, err.Error())
-	}
-	access_token, err := token.Sign(token.Claims{
-		Email: user.Email,
-		Name:  user.Name,
-		Image: user.Image.String,
-		RegisteredClaims: jwt.RegisteredClaims{
-			IssuedAt:  jwt.NewNumericDate(currentTime),
-			ExpiresAt: jwt.NewNumericDate(currentTime.Add(time.Duration(cfg.AccessTokenAge) * time.Second)),
-			ID:        claims["jti"].(string),
-			Subject:   "access_token",
-		},
-	})
-	if err != nil {
-		return nil, status.Error(codes.Unknown, err.Error())
-	}
-
-	return &pb.GetAccessTokenResponse{
-		AccessToken:  access_token,
-		RefreshToken: user.RefreshToken.String,
 	}, nil
 }
 
@@ -310,7 +159,7 @@ func (server *UserServer) GetMyOverview(ctx context.Context, req *pb.GetMyOvervi
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
-	overview, err := server.DB.GetUserOverview(ctx, pgtype.UUID{Bytes: userUUID, Valid: true})
+	overview, err := server.DBQueries.GetUserOverview(ctx, pgtype.UUID{Bytes: userUUID, Valid: true})
 	if err != nil {
 		return nil, status.Error(codes.NotFound, err.Error())
 	}
@@ -326,8 +175,8 @@ func (server *UserServer) GetMyOverview(ctx context.Context, req *pb.GetMyOvervi
 		TotalDownvote: uint32(overview.TotalDownvoted),
 		Follower:      uint32(overview.Follower),
 		Following:     uint32(overview.Following),
-		CreatedAt:     timestamppb.New(overview.CreatedAt.Time),
-		UpdateMedAt:   timestamppb.New(overview.UpdatedAt.Time),
+		CreatedAt:     uint64(overview.CreatedAt.Time.Second()),
+		UpdatedAt:     uint64(overview.UpdatedAt.Time.Second()),
 	}, nil
 }
 
@@ -339,7 +188,7 @@ func (server *UserServer) GetMyPost(ctx context.Context, req *pb.GetMyPostReques
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 	if req.GetSort() == "hot" {
-		posts, _ := server.DB.GetUserHotPosts(ctx, database.GetUserHotPostsParams{ID: pgtype.UUID{Bytes: userUUID, Valid: true}, Limit: int32(req.GetLimit()), Offset: int32(req.GetOffset())})
+		posts, _ := server.DBQueries.GetUserHotPosts(ctx, database.GetUserHotPostsParams{ID: pgtype.UUID{Bytes: userUUID, Valid: true}, Limit: int32(req.GetLimit()), Offset: int32(req.GetOffset())})
 		res := []*pb.PostData{}
 		for _, p := range posts {
 			res = append(res, &pb.PostData{
@@ -355,8 +204,8 @@ func (server *UserServer) GetMyPost(ctx context.Context, req *pb.GetMyPostReques
 				Upvote:    uint32(p.UpVoted),
 				Downvote:  uint32(p.DownVoted),
 				Comments:  uint32(p.CommentsCount),
-				CreatedAt: timestamppb.New(p.CreatedAt.Time),
-				UpdatedAt: timestamppb.New(p.UpdatedAt.Time),
+				CreatedAt: uint64(p.CreatedAt.Time.Second()),
+				UpdatedAt: uint64(p.UpdatedAt.Time.Second()),
 			})
 		}
 		return &pb.GetMyPostResponse{
@@ -364,7 +213,7 @@ func (server *UserServer) GetMyPost(ctx context.Context, req *pb.GetMyPostReques
 		}, nil
 	}
 	if req.GetSort() == "top" {
-		posts, _ := server.DB.GetUserTopPosts(ctx, database.GetUserTopPostsParams{ID: pgtype.UUID{Bytes: userUUID, Valid: true}, Limit: int32(req.GetLimit()), Offset: int32(req.GetOffset())})
+		posts, _ := server.DBQueries.GetUserTopPosts(ctx, database.GetUserTopPostsParams{ID: pgtype.UUID{Bytes: userUUID, Valid: true}, Limit: int32(req.GetLimit()), Offset: int32(req.GetOffset())})
 		res := []*pb.PostData{}
 		for _, p := range posts {
 			res = append(res, &pb.PostData{
@@ -380,15 +229,15 @@ func (server *UserServer) GetMyPost(ctx context.Context, req *pb.GetMyPostReques
 				Upvote:    uint32(p.UpVoted),
 				Downvote:  uint32(p.DownVoted),
 				Comments:  uint32(p.CommentsCount),
-				CreatedAt: timestamppb.New(p.CreatedAt.Time),
-				UpdatedAt: timestamppb.New(p.UpdatedAt.Time),
+				CreatedAt: uint64(p.CreatedAt.Time.Second()),
+				UpdatedAt: uint64(p.UpdatedAt.Time.Second()),
 			})
 		}
 		return &pb.GetMyPostResponse{
 			Posts: res,
 		}, nil
 	}
-	posts, _ := server.DB.GetUserNewPosts(ctx, database.GetUserNewPostsParams{ID: pgtype.UUID{Bytes: userUUID, Valid: true}, Limit: int32(req.GetLimit()), Offset: int32(req.GetOffset())})
+	posts, _ := server.DBQueries.GetUserNewPosts(ctx, database.GetUserNewPostsParams{ID: pgtype.UUID{Bytes: userUUID, Valid: true}, Limit: int32(req.GetLimit()), Offset: int32(req.GetOffset())})
 	res := []*pb.PostData{}
 	for _, p := range posts {
 		res = append(res, &pb.PostData{
@@ -404,8 +253,8 @@ func (server *UserServer) GetMyPost(ctx context.Context, req *pb.GetMyPostReques
 			Upvote:    uint32(p.UpVoted),
 			Downvote:  uint32(p.DownVoted),
 			Comments:  uint32(p.CommentsCount),
-			CreatedAt: timestamppb.New(p.CreatedAt.Time),
-			UpdatedAt: timestamppb.New(p.UpdatedAt.Time),
+			CreatedAt: uint64(p.CreatedAt.Time.Second()),
+			UpdatedAt: uint64(p.UpdatedAt.Time.Second()),
 		})
 	}
 	return &pb.GetMyPostResponse{
@@ -425,7 +274,7 @@ func (server *UserServer) FollowUser(ctx context.Context, req *pb.FollowUserRequ
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
-	err = server.DB.CreateFollows(ctx, database.CreateFollowsParams{
+	err = server.DBQueries.CreateFollows(ctx, database.CreateFollowsParams{
 		ID:         pgtype.UUID{Bytes: uuid.New(), Valid: true},
 		AuthorID:   pgtype.UUID{Bytes: user_uuid, Valid: true},
 		FollowerID: pgtype.UUID{Bytes: follower_uuid, Valid: true},
@@ -452,7 +301,7 @@ func (server *UserServer) UnFollowUser(ctx context.Context, req *pb.UnFollowUser
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 
-	err = server.DB.DeleteFollows(ctx, database.DeleteFollowsParams{
+	err = server.DBQueries.DeleteFollows(ctx, database.DeleteFollowsParams{
 		AuthorID:   pgtype.UUID{Bytes: user_uuid, Valid: true},
 		FollowerID: pgtype.UUID{Bytes: follower_uuid, Valid: true},
 	})
@@ -476,7 +325,7 @@ func (server *UserServer) CheckUserFollowed(ctx context.Context, req *pb.CheckUs
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
-	follow, err := server.DB.GetFollows(ctx, database.GetFollowsParams{
+	follow, err := server.DBQueries.GetFollows(ctx, database.GetFollowsParams{
 		AuthorID:   pgtype.UUID{Bytes: user_uuid, Valid: true},
 		FollowerID: pgtype.UUID{Bytes: follower_uuid, Valid: true},
 	})
@@ -486,15 +335,15 @@ func (server *UserServer) CheckUserFollowed(ctx context.Context, req *pb.CheckUs
 
 	return &pb.CheckUserFollowedResponse{
 		FollowId:  follow.ID.String(),
-		CreatedAt: timestamppb.New(follow.CreatedAt.Time),
+		CreatedAt: uint64(follow.CreatedAt.Time.Second()),
 	}, nil
 }
 
-func (server *UserServer) GetFollowedUser(ctx context.Context, req *pb.GetFollowedUsersRequest) (*pb.GetFollowedUsersResponse, error) {
+func (server *UserServer) GetFollowedUsers(ctx context.Context, req *pb.GetFollowedUsersRequest) (*pb.GetFollowedUsersResponse, error) {
 	userSession := ctx.Value(cfg.CtxKeys.User).(map[string]interface{})
 	follower_id := userSession["jti"].(string)
 	follower_uuid, _ := uuid.Parse(follower_id)
-	followedAuthors, err := server.DB.GetFollowedAuthor(ctx, database.GetFollowedAuthorParams{
+	followedAuthors, err := server.DBQueries.GetFollowedAuthor(ctx, database.GetFollowedAuthorParams{
 		FollowerID: pgtype.UUID{Bytes: follower_uuid, Valid: true},
 		Limit:      int32(req.GetLimit()),
 		Offset:     int32(req.GetOffset()),
