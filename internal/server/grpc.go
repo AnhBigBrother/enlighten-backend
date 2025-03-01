@@ -4,6 +4,7 @@ import (
 	"crypto/tls"
 	"log"
 
+	"github.com/AnhBigBrother/enlighten-backend/cfg"
 	"github.com/AnhBigBrother/enlighten-backend/internal/interceptor"
 	"github.com/AnhBigBrother/enlighten-backend/internal/pb"
 	"github.com/AnhBigBrother/enlighten-backend/internal/services"
@@ -51,7 +52,7 @@ func NewGrpcServer() *grpc.Server {
 
 func loadTSLCredentials() (credentials.TransportCredentials, error) {
 	// load server certificate and private key
-	serverCert, err := tls.LoadX509KeyPair("./cert/server-cert.pem", "./cert/server-key.pem")
+	serverCert, err := tls.LoadX509KeyPair(cfg.ServerCertificateFile, cfg.ServerKeyFile)
 	if err != nil {
 		return nil, err
 	}

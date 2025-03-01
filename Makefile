@@ -1,6 +1,9 @@
 gen-proto:
 	cd proto; sh gen.sh; cd ..;
 
+gen-cert:
+	cd cert; sh gen.sh; cd ..;
+
 build-img:
 	docker build -t anhbruhh/enlighten-api:0.2 .
 
@@ -16,4 +19,4 @@ start-dev:
 start-pro: 
 	go build -o bin/api cmd/api/main.go && ./bin/api -env=production
 
-.PHONY: start-dev start-pro gen-proto build-img goose-up goose-down
+.PHONY: start-dev start-pro gen-proto gen-cert build-img goose-up goose-down

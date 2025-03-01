@@ -14,6 +14,7 @@ WORKDIR /app
 
 COPY --from=builder /app/bin/api ./
 COPY --from=builder /app/.env.production ./
+COPY --from=builder /app/cert ./cert
 
 EXPOSE 8080
 

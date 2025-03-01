@@ -31,6 +31,9 @@ var (
 	CookieAge       int
 	CtxKeys         ContextKeys
 
+	ServerCertificateFile string
+	ServerKeyFile         string
+
 	// GithubClientId       string
 	// GithubClientSecret   string
 	// GithubCallbackUrl    string
@@ -136,6 +139,9 @@ func load(env string) {
 	AccessTokenAge = 30 * 60           // in second
 	RefreshTokenAge = 7 * 24 * 60 * 60 // in second
 	CookieAge = 7 * 24 * 60 * 60       // in second
+
+	ServerCertificateFile = "cert/server-cert.pem"
+	ServerKeyFile = "cert/server-key.pem"
 
 	// GithubClientId = githubClientId
 	// GithubClientSecret = githubClientSecret
