@@ -2,19 +2,20 @@ package cfg
 
 import (
 	"context"
+	"flag"
 	"log"
 	"os"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/joho/godotenv"
 
 	"github.com/AnhBigBrother/enlighten-backend/internal/database"
-	"github.com/joho/godotenv"
 )
 
-type contextKey string
+type KeyType string
 
-type contextKeys struct {
-	User contextKey
+type ContextKeys struct {
+	User KeyType
 }
 
 var (
@@ -28,7 +29,10 @@ var (
 	AccessTokenAge  int
 	RefreshTokenAge int
 	CookieAge       int
-	CtxKeys         contextKeys
+	CtxKeys         ContextKeys
+
+	ServerCertificateFile string
+	ServerKeyFile         string
 
 	// GithubClientId       string
 	// GithubClientSecret   string
@@ -56,10 +60,25 @@ var (
 )
 
 func init() {
-	// err := godotenv.Load(".env.production")
-	err := godotenv.Load(".env")
-	if err != nil {
-		log.Fatal(err)
+	env := flag.String("env", "developement", "Set environment")
+
+	flag.Parse()
+
+	load(*env)
+}
+
+func load(env string) {
+	log.Println("Environment:", env)
+	if env == "production" {
+		err := godotenv.Load(".env.production")
+		if err != nil {
+			log.Fatal(err)
+		}
+	} else {
+		err := godotenv.Load(".env")
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 
 	dbUri := os.Getenv("DB_URI")
@@ -114,12 +133,15 @@ func init() {
 	BackendUrl = backendUrl
 	JwtSecret = jwtSecret
 	Port = port
-	CtxKeys = contextKeys{
+	CtxKeys = ContextKeys{
 		User: "user",
 	}
 	AccessTokenAge = 30 * 60           // in second
 	RefreshTokenAge = 7 * 24 * 60 * 60 // in second
 	CookieAge = 7 * 24 * 60 * 60       // in second
+
+	ServerCertificateFile = "cert/server-cert.pem"
+	ServerKeyFile = "cert/server-key.pem"
 
 	// GithubClientId = githubClientId
 	// GithubClientSecret = githubClientSecret

@@ -1,17 +1,17 @@
-package handler
+package service
 
 import (
+	"encoding/json"
 	"net/http"
 	"strconv"
 
-	"github.com/AnhBigBrother/enlighten-backend/pkg/parser"
-	"github.com/AnhBigBrother/enlighten-backend/pkg/resp"
-	"github.com/AnhBigBrother/enlighten-backend/pkg/sudoku"
+	"github.com/AnhBigBrother/enlighten-backend/internal/pkg/resp"
+	"github.com/AnhBigBrother/enlighten-backend/internal/pkg/sudoku"
 )
 
 type Sudoku struct{}
 
-func NewSudokuHandler() Sudoku {
+func NewSudokuService() Sudoku {
 	return Sudoku{}
 }
 
@@ -19,7 +19,7 @@ func (s *Sudoku) SolveSudoku(w http.ResponseWriter, r *http.Request) {
 	su := struct {
 		Board [][]int `json:"board"`
 	}{}
-	err := parser.ParseBody(r.Body, &su)
+	err := json.NewDecoder(r.Body).Decode(&su)
 	if err != nil {
 		resp.Err(w, 400, err.Error())
 		return
@@ -50,7 +50,7 @@ func (s *Sudoku) CheckSolvable(w http.ResponseWriter, r *http.Request) {
 	su := struct {
 		Board [][]int `json:"board"`
 	}{}
-	err := parser.ParseBody(r.Body, &su)
+	err := json.NewDecoder(r.Body).Decode(&su)
 	if err != nil {
 		resp.Err(w, 400, err.Error())
 		return

@@ -1,6 +1,7 @@
-package handler
+package service
 
 import (
+	"encoding/json"
 	"log"
 	"net/http"
 	"strconv"
@@ -9,28 +10,28 @@ import (
 	"github.com/AnhBigBrother/enlighten-backend/cfg"
 	"github.com/AnhBigBrother/enlighten-backend/internal/database"
 	"github.com/AnhBigBrother/enlighten-backend/internal/dto"
-	"github.com/AnhBigBrother/enlighten-backend/pkg/parser"
-	"github.com/AnhBigBrother/enlighten-backend/pkg/resp"
-	"github.com/AnhBigBrother/enlighten-backend/pkg/token"
+
+	token "github.com/AnhBigBrother/enlighten-backend/internal/pkg/jwt-token"
+	"github.com/AnhBigBrother/enlighten-backend/internal/pkg/resp"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 	"golang.org/x/crypto/bcrypt"
 )
 
-type UsersHandler struct {
+type UserService struct {
 	DB *database.Queries
 }
 
-func NewUsersHandler() UsersHandler {
-	return UsersHandler{
+func NewUserService() UserService {
+	return UserService{
 		DB: cfg.DBQueries,
 	}
 }
 
-func (usersHandler *UsersHandler) SignUp(w http.ResponseWriter, r *http.Request) {
+func (userService *UserService) SignUp(w http.ResponseWriter, r *http.Request) {
 	params := dto.UserSignUp{}
-	err := parser.ParseBody(r.Body, &params)
+	err := json.NewDecoder(r.Body).Decode(&params)
 	if err != nil {
 		resp.Err(w, 400, err.Error())
 		return
@@ -76,7 +77,7 @@ func (usersHandler *UsersHandler) SignUp(w http.ResponseWriter, r *http.Request)
 		createUserParams.Image = pgtype.Text{String: params.Image, Valid: true}
 	}
 
-	_, err = usersHandler.DB.CreateUser(r.Context(), createUserParams)
+	_, err = userService.DB.CreateUser(r.Context(), createUserParams)
 	if err != nil {
 		resp.Err(w, 400, err.Error())
 		return
@@ -107,9 +108,9 @@ func (usersHandler *UsersHandler) SignUp(w http.ResponseWriter, r *http.Request)
 	}{AccessToken: access_token, RefreshToken: refresh_token})
 }
 
-func (usersHandler *UsersHandler) SignIn(w http.ResponseWriter, r *http.Request) {
+func (userService *UserService) SignIn(w http.ResponseWriter, r *http.Request) {
 	params := dto.UserLogIn{}
-	err := parser.ParseBody(r.Body, &params)
+	err := json.NewDecoder(r.Body).Decode(&params)
 	if err != nil {
 		resp.Err(w, 400, err.Error())
 		return
@@ -119,7 +120,7 @@ func (usersHandler *UsersHandler) SignIn(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	user, err := usersHandler.DB.FindUserByEmail(r.Context(), params.Email)
+	user, err := userService.DB.FindUserByEmail(r.Context(), params.Email)
 	if err != nil {
 		resp.Err(w, 404, err.Error())
 		return
@@ -161,7 +162,7 @@ func (usersHandler *UsersHandler) SignIn(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	_, err = usersHandler.DB.UpdateUserRefreshToken(r.Context(), database.UpdateUserRefreshTokenParams{
+	_, err = userService.DB.UpdateUserRefreshToken(r.Context(), database.UpdateUserRefreshTokenParams{
 		Email:        params.Email,
 		RefreshToken: pgtype.Text{String: refresh_token, Valid: true},
 	})
@@ -179,11 +180,11 @@ func (usersHandler *UsersHandler) SignIn(w http.ResponseWriter, r *http.Request)
 	}{AccessToken: access_token, RefreshToken: refresh_token})
 }
 
-func (usersHandler *UsersHandler) SignOut(w http.ResponseWriter, r *http.Request) {
+func (userService *UserService) SignOut(w http.ResponseWriter, r *http.Request) {
 	session := r.Context().Value(cfg.CtxKeys.User).(map[string]interface{})
 	sessionEmail := session["email"].(string)
 
-	_, err := usersHandler.DB.UpdateUserRefreshToken(r.Context(), database.UpdateUserRefreshTokenParams{
+	_, err := userService.DB.UpdateUserRefreshToken(r.Context(), database.UpdateUserRefreshTokenParams{
 		Email:        sessionEmail,
 		RefreshToken: pgtype.Text{Valid: false},
 	})
@@ -200,10 +201,10 @@ func (usersHandler *UsersHandler) SignOut(w http.ResponseWriter, r *http.Request
 	}{Message: "Signed out"})
 }
 
-func (usersHandler *UsersHandler) GetMe(w http.ResponseWriter, r *http.Request) {
+func (userService *UserService) GetMe(w http.ResponseWriter, r *http.Request) {
 	session := r.Context().Value(cfg.CtxKeys.User).(map[string]interface{})
 	sessionEmail := session["email"].(string)
-	currUser, err := usersHandler.DB.FindUserByEmail(r.Context(), sessionEmail)
+	currUser, err := userService.DB.FindUserByEmail(r.Context(), sessionEmail)
 	if err != nil {
 		resp.Err(w, 404, err.Error())
 		return
@@ -212,9 +213,9 @@ func (usersHandler *UsersHandler) GetMe(w http.ResponseWriter, r *http.Request) 
 	resp.Json(w, 200, currUser)
 }
 
-func (usersHandler *UsersHandler) UpdateMe(w http.ResponseWriter, r *http.Request) {
+func (userService *UserService) UpdateMe(w http.ResponseWriter, r *http.Request) {
 	params := dto.UserUpdate{}
-	err := parser.ParseBody(r.Body, &params)
+	err := json.NewDecoder(r.Body).Decode(&params)
 	if err != nil {
 		resp.Err(w, 400, err.Error())
 		return
@@ -234,7 +235,7 @@ func (usersHandler *UsersHandler) UpdateMe(w http.ResponseWriter, r *http.Reques
 
 	session := r.Context().Value(cfg.CtxKeys.User).(map[string]interface{})
 	sessionEmail := session["email"].(string)
-	user, err := usersHandler.DB.FindUserByEmail(r.Context(), sessionEmail)
+	user, err := userService.DB.FindUserByEmail(r.Context(), sessionEmail)
 	if err != nil {
 		resp.Err(w, 400, err.Error())
 		return
@@ -258,7 +259,7 @@ func (usersHandler *UsersHandler) UpdateMe(w http.ResponseWriter, r *http.Reques
 	if len(params.Bio) > 0 {
 		updateUserInfoParams.Bio = pgtype.Text{String: params.Bio, Valid: true}
 	}
-	_, err = usersHandler.DB.UpdateUserInfo(r.Context(), updateUserInfoParams)
+	_, err = userService.DB.UpdateUserInfo(r.Context(), updateUserInfoParams)
 	if err != nil {
 		resp.Err(w, 400, err.Error())
 		return
@@ -288,12 +289,12 @@ func (usersHandler *UsersHandler) UpdateMe(w http.ResponseWriter, r *http.Reques
 	}{AccessToken: access_token, RefreshToken: user.RefreshToken.String})
 }
 
-func (usersHandler *UsersHandler) DeleteMe(w http.ResponseWriter, r *http.Request) {
+func (userService *UserService) DeleteMe(w http.ResponseWriter, r *http.Request) {
 	password := r.URL.Query().Get("password")
 	session := r.Context().Value(cfg.CtxKeys.User).(map[string]interface{})
 	sessionEmail := session["email"].(string)
 
-	user, err := usersHandler.DB.FindUserByEmail(r.Context(), sessionEmail)
+	user, err := userService.DB.FindUserByEmail(r.Context(), sessionEmail)
 	if err != nil {
 		resp.Err(w, 400, err.Error())
 		return
@@ -304,7 +305,7 @@ func (usersHandler *UsersHandler) DeleteMe(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	err = usersHandler.DB.DeleteUserInfo(r.Context(), sessionEmail)
+	err = userService.DB.DeleteUserInfo(r.Context(), sessionEmail)
 	if err != nil {
 		resp.Err(w, 400, err.Error())
 		return
@@ -318,12 +319,12 @@ func (usersHandler *UsersHandler) DeleteMe(w http.ResponseWriter, r *http.Reques
 	}{Message: "success"})
 }
 
-func (usersHandler *UsersHandler) GetSesion(w http.ResponseWriter, r *http.Request) {
+func (userService *UserService) GetSesion(w http.ResponseWriter, r *http.Request) {
 	session := r.Context().Value(cfg.CtxKeys.User).(map[string]interface{})
 	resp.Json(w, 200, session)
 }
 
-func (usersHandler *UsersHandler) GetAccessToken(w http.ResponseWriter, r *http.Request) {
+func (userService *UserService) GetAccessToken(w http.ResponseWriter, r *http.Request) {
 	refresh_token := r.URL.Query().Get("refresh_token")
 	if refresh_token == "" {
 		cookie, err := r.Cookie("refresh_token")
@@ -335,7 +336,7 @@ func (usersHandler *UsersHandler) GetAccessToken(w http.ResponseWriter, r *http.
 		resp.Err(w, 400, "Missing parameter: refresh_token")
 		return
 	}
-	claims, err := token.Parse(refresh_token)
+	claims, err := token.ParseAndVerify(refresh_token)
 	if err != nil {
 		resp.Err(w, 400, err.Error())
 		return
@@ -362,7 +363,7 @@ func (usersHandler *UsersHandler) GetAccessToken(w http.ResponseWriter, r *http.
 		return
 	}
 
-	user, err := usersHandler.DB.UpdateUserRefreshToken(r.Context(), database.UpdateUserRefreshTokenParams{
+	user, err := userService.DB.UpdateUserRefreshToken(r.Context(), database.UpdateUserRefreshTokenParams{
 		Email:        claims["email"].(string),
 		RefreshToken: pgtype.Text{String: new_refresh_token, Valid: true},
 	})
@@ -396,7 +397,7 @@ func (usersHandler *UsersHandler) GetAccessToken(w http.ResponseWriter, r *http.
 	}{AccessToken: access_token, RefreshToken: new_refresh_token})
 }
 
-func (usersHandler *UsersHandler) GetMyOverview(w http.ResponseWriter, r *http.Request) {
+func (userService *UserService) GetMyOverview(w http.ResponseWriter, r *http.Request) {
 	user := r.Context().Value(cfg.CtxKeys.User).(map[string]interface{})
 	userId := user["jti"].(string)
 	userUUID, err := uuid.Parse(userId)
@@ -404,7 +405,7 @@ func (usersHandler *UsersHandler) GetMyOverview(w http.ResponseWriter, r *http.R
 		resp.Err(w, 400, "invalid user_id")
 		return
 	}
-	overview, err := usersHandler.DB.GetUserOverview(r.Context(), pgtype.UUID{Bytes: userUUID, Valid: true})
+	overview, err := userService.DB.GetUserOverview(r.Context(), pgtype.UUID{Bytes: userUUID, Valid: true})
 	if err != nil {
 		resp.Err(w, 404, "user not found")
 		return
@@ -438,7 +439,7 @@ func (usersHandler *UsersHandler) GetMyOverview(w http.ResponseWriter, r *http.R
 	})
 }
 
-func (usersHandler *UsersHandler) GetMyPosts(w http.ResponseWriter, r *http.Request) {
+func (userService *UserService) GetMyPosts(w http.ResponseWriter, r *http.Request) {
 	user := r.Context().Value(cfg.CtxKeys.User).(map[string]interface{})
 	userId := user["jti"].(string)
 	userUUID, err := uuid.Parse(userId)
@@ -471,7 +472,7 @@ func (usersHandler *UsersHandler) GetMyPosts(w http.ResponseWriter, r *http.Requ
 		AuthorImage   string           `json:"author_image"`
 	}
 	if sort == "hot" {
-		posts, _ := usersHandler.DB.GetUserHotPosts(r.Context(), database.GetUserHotPostsParams{ID: pgtype.UUID{Bytes: userUUID, Valid: true}, Limit: int32(limit), Offset: int32(offset)})
+		posts, _ := userService.DB.GetUserHotPosts(r.Context(), database.GetUserHotPostsParams{ID: pgtype.UUID{Bytes: userUUID, Valid: true}, Limit: int32(limit), Offset: int32(offset)})
 		jsonPosts := []JsonPost{}
 		for _, p := range posts {
 			jsonPosts = append(jsonPosts, JsonPost{
@@ -493,7 +494,7 @@ func (usersHandler *UsersHandler) GetMyPosts(w http.ResponseWriter, r *http.Requ
 		return
 	}
 	if sort == "top" {
-		posts, _ := usersHandler.DB.GetUserTopPosts(r.Context(), database.GetUserTopPostsParams{ID: pgtype.UUID{Bytes: userUUID, Valid: true}, Limit: int32(limit), Offset: int32(offset)})
+		posts, _ := userService.DB.GetUserTopPosts(r.Context(), database.GetUserTopPostsParams{ID: pgtype.UUID{Bytes: userUUID, Valid: true}, Limit: int32(limit), Offset: int32(offset)})
 		jsonPosts := []JsonPost{}
 		for _, p := range posts {
 			jsonPosts = append(jsonPosts, JsonPost{
@@ -514,7 +515,7 @@ func (usersHandler *UsersHandler) GetMyPosts(w http.ResponseWriter, r *http.Requ
 		resp.Json(w, 200, jsonPosts)
 		return
 	}
-	posts, _ := usersHandler.DB.GetUserNewPosts(r.Context(), database.GetUserNewPostsParams{ID: pgtype.UUID{Bytes: userUUID, Valid: true}, Limit: int32(limit), Offset: int32(offset)})
+	posts, _ := userService.DB.GetUserNewPosts(r.Context(), database.GetUserNewPostsParams{ID: pgtype.UUID{Bytes: userUUID, Valid: true}, Limit: int32(limit), Offset: int32(offset)})
 	jsonPosts := []JsonPost{}
 	for _, p := range posts {
 		jsonPosts = append(jsonPosts, JsonPost{
@@ -535,7 +536,7 @@ func (usersHandler *UsersHandler) GetMyPosts(w http.ResponseWriter, r *http.Requ
 	resp.Json(w, 200, jsonPosts)
 }
 
-func (usersHandler *UsersHandler) GetOverview(w http.ResponseWriter, r *http.Request) {
+func (userService *UserService) GetOverview(w http.ResponseWriter, r *http.Request) {
 	user_id := r.PathValue("user_id")
 	if user_id == "" {
 		resp.Err(w, 400, "invalid user_id")
@@ -546,7 +547,7 @@ func (usersHandler *UsersHandler) GetOverview(w http.ResponseWriter, r *http.Req
 		resp.Err(w, 400, "invalid user_id")
 		return
 	}
-	overview, err := usersHandler.DB.GetUserOverview(r.Context(), pgtype.UUID{Bytes: userUUID, Valid: true})
+	overview, err := userService.DB.GetUserOverview(r.Context(), pgtype.UUID{Bytes: userUUID, Valid: true})
 	if err != nil {
 		resp.Err(w, 404, "user not found")
 		return
@@ -580,7 +581,7 @@ func (usersHandler *UsersHandler) GetOverview(w http.ResponseWriter, r *http.Req
 	})
 }
 
-func (usersHandler *UsersHandler) GetPosts(w http.ResponseWriter, r *http.Request) {
+func (userService *UserService) GetPosts(w http.ResponseWriter, r *http.Request) {
 	user_id := r.PathValue("user_id")
 	if user_id == "" {
 		resp.Err(w, 400, "invalid user_id")
@@ -616,7 +617,7 @@ func (usersHandler *UsersHandler) GetPosts(w http.ResponseWriter, r *http.Reques
 		AuthorImage   string           `json:"author_image"`
 	}
 	if sort == "hot" {
-		posts, _ := usersHandler.DB.GetUserHotPosts(r.Context(), database.GetUserHotPostsParams{ID: pgtype.UUID{Bytes: userUUID, Valid: true}, Limit: int32(limit), Offset: int32(offset)})
+		posts, _ := userService.DB.GetUserHotPosts(r.Context(), database.GetUserHotPostsParams{ID: pgtype.UUID{Bytes: userUUID, Valid: true}, Limit: int32(limit), Offset: int32(offset)})
 		jsonPosts := []JsonPost{}
 		for _, p := range posts {
 			jsonPosts = append(jsonPosts, JsonPost{
@@ -638,7 +639,7 @@ func (usersHandler *UsersHandler) GetPosts(w http.ResponseWriter, r *http.Reques
 		return
 	}
 	if sort == "top" {
-		posts, _ := usersHandler.DB.GetUserTopPosts(r.Context(), database.GetUserTopPostsParams{ID: pgtype.UUID{Bytes: userUUID, Valid: true}, Limit: int32(limit), Offset: int32(offset)})
+		posts, _ := userService.DB.GetUserTopPosts(r.Context(), database.GetUserTopPostsParams{ID: pgtype.UUID{Bytes: userUUID, Valid: true}, Limit: int32(limit), Offset: int32(offset)})
 		jsonPosts := []JsonPost{}
 		for _, p := range posts {
 			jsonPosts = append(jsonPosts, JsonPost{
@@ -659,7 +660,7 @@ func (usersHandler *UsersHandler) GetPosts(w http.ResponseWriter, r *http.Reques
 		resp.Json(w, 200, jsonPosts)
 		return
 	}
-	posts, _ := usersHandler.DB.GetUserNewPosts(r.Context(), database.GetUserNewPostsParams{ID: pgtype.UUID{Bytes: userUUID, Valid: true}, Limit: int32(limit), Offset: int32(offset)})
+	posts, _ := userService.DB.GetUserNewPosts(r.Context(), database.GetUserNewPostsParams{ID: pgtype.UUID{Bytes: userUUID, Valid: true}, Limit: int32(limit), Offset: int32(offset)})
 	jsonPosts := []JsonPost{}
 	for _, p := range posts {
 		jsonPosts = append(jsonPosts, JsonPost{
@@ -680,7 +681,7 @@ func (usersHandler *UsersHandler) GetPosts(w http.ResponseWriter, r *http.Reques
 	resp.Json(w, 200, jsonPosts)
 }
 
-func (usersHandler *UsersHandler) Follow(w http.ResponseWriter, r *http.Request) {
+func (userService *UserService) Follow(w http.ResponseWriter, r *http.Request) {
 	session := r.Context().Value(cfg.CtxKeys.User).(map[string]interface{})
 	follower_id := session["jti"].(string)
 	follower_uuid, _ := uuid.Parse(follower_id)
@@ -694,7 +695,7 @@ func (usersHandler *UsersHandler) Follow(w http.ResponseWriter, r *http.Request)
 		resp.Err(w, 400, "invalid user_id")
 		return
 	}
-	err = usersHandler.DB.CreateFollows(r.Context(), database.CreateFollowsParams{
+	err = userService.DB.CreateFollows(r.Context(), database.CreateFollowsParams{
 		ID:         pgtype.UUID{Bytes: uuid.New(), Valid: true},
 		AuthorID:   pgtype.UUID{Bytes: userUUID, Valid: true},
 		FollowerID: pgtype.UUID{Bytes: follower_uuid, Valid: true},
@@ -709,7 +710,7 @@ func (usersHandler *UsersHandler) Follow(w http.ResponseWriter, r *http.Request)
 	}{Message: "success"})
 }
 
-func (usersHandler *UsersHandler) UnFollow(w http.ResponseWriter, r *http.Request) {
+func (userService *UserService) UnFollow(w http.ResponseWriter, r *http.Request) {
 	session := r.Context().Value(cfg.CtxKeys.User).(map[string]interface{})
 	follower_id := session["jti"].(string)
 	follower_uuid, _ := uuid.Parse(follower_id)
@@ -723,7 +724,7 @@ func (usersHandler *UsersHandler) UnFollow(w http.ResponseWriter, r *http.Reques
 		resp.Err(w, 400, "invalid user_id")
 		return
 	}
-	err = usersHandler.DB.DeleteFollows(r.Context(), database.DeleteFollowsParams{
+	err = userService.DB.DeleteFollows(r.Context(), database.DeleteFollowsParams{
 		AuthorID:   pgtype.UUID{Bytes: userUUID, Valid: true},
 		FollowerID: pgtype.UUID{Bytes: follower_uuid, Valid: true},
 	})
@@ -736,7 +737,7 @@ func (usersHandler *UsersHandler) UnFollow(w http.ResponseWriter, r *http.Reques
 	}{Message: "success"})
 }
 
-func (usersHandler *UsersHandler) CheckFollowed(w http.ResponseWriter, r *http.Request) {
+func (userService *UserService) CheckFollowed(w http.ResponseWriter, r *http.Request) {
 	session := r.Context().Value(cfg.CtxKeys.User).(map[string]interface{})
 	follower_id := session["jti"].(string)
 	follower_uuid, _ := uuid.Parse(follower_id)
@@ -746,7 +747,7 @@ func (usersHandler *UsersHandler) CheckFollowed(w http.ResponseWriter, r *http.R
 		resp.Err(w, 400, "invalid user_id")
 		return
 	}
-	follow, err := usersHandler.DB.GetFollows(r.Context(), database.GetFollowsParams{
+	follow, err := userService.DB.GetFollows(r.Context(), database.GetFollowsParams{
 		AuthorID:   pgtype.UUID{Bytes: userUUID, Valid: true},
 		FollowerID: pgtype.UUID{Bytes: follower_uuid, Valid: true},
 	})
@@ -767,7 +768,7 @@ func (usersHandler *UsersHandler) CheckFollowed(w http.ResponseWriter, r *http.R
 	})
 }
 
-func (usersHandler *UsersHandler) GetFollowedAuthor(w http.ResponseWriter, r *http.Request) {
+func (userService *UserService) GetFollowedAuthor(w http.ResponseWriter, r *http.Request) {
 	user := r.Context().Value(cfg.CtxKeys.User).(map[string]interface{})
 	userId := user["jti"].(string)
 	userUUID, _ := uuid.Parse(userId)
@@ -781,7 +782,7 @@ func (usersHandler *UsersHandler) GetFollowedAuthor(w http.ResponseWriter, r *ht
 	if err != nil {
 		offset = 0
 	}
-	followedAuthors, err := usersHandler.DB.GetFollowedAuthor(r.Context(), database.GetFollowedAuthorParams{
+	followedAuthors, err := userService.DB.GetFollowedAuthor(r.Context(), database.GetFollowedAuthorParams{
 		FollowerID: pgtype.UUID{Bytes: userUUID, Valid: true},
 		Limit:      int32(limit),
 		Offset:     int32(offset),
@@ -793,7 +794,7 @@ func (usersHandler *UsersHandler) GetFollowedAuthor(w http.ResponseWriter, r *ht
 	resp.Json(w, 200, followedAuthors)
 }
 
-func (usersHandler *UsersHandler) GetTopAuthor(w http.ResponseWriter, r *http.Request) {
+func (userService *UserService) GetTopAuthor(w http.ResponseWriter, r *http.Request) {
 	queryParams := r.URL.Query()
 	limitStr, offsetStr := queryParams.Get("limit"), queryParams.Get("offset")
 	limit, err := strconv.Atoi(limitStr)
@@ -804,7 +805,7 @@ func (usersHandler *UsersHandler) GetTopAuthor(w http.ResponseWriter, r *http.Re
 	if err != nil {
 		offset = 0
 	}
-	topAuthors, err := usersHandler.DB.GetTopAuthor(r.Context(), database.GetTopAuthorParams{
+	topAuthors, err := userService.DB.GetTopAuthor(r.Context(), database.GetTopAuthorParams{
 		Limit:  int32(limit),
 		Offset: int32(offset),
 	})

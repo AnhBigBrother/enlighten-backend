@@ -3,30 +3,25 @@ package middleware
 import (
 	"context"
 	"net/http"
-	"strings"
 
 	"github.com/AnhBigBrother/enlighten-backend/cfg"
-	"github.com/AnhBigBrother/enlighten-backend/pkg/token"
+	token "github.com/AnhBigBrother/enlighten-backend/internal/pkg/jwt-token"
 )
 
 func Auth(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		access_token := ""
-		cookie, err := r.Cookie("access_token")
-		if err == nil {
-			access_token = cookie.Value
-		} else {
-			reqToken := r.Header.Get("Authorization")
-			splitToken := strings.Split(reqToken, " ")
-			if len(splitToken) == 2 && splitToken[0] == "Bearer" {
-				access_token = splitToken[1]
+		access_token := r.Header.Get("Authorization")
+		if access_token == "" {
+			cookie, err := r.Cookie("access_token")
+			if err == nil {
+				access_token = cookie.Value
 			}
 		}
 		if access_token == "" {
 			next.ServeHTTP(w, r)
 			return
 		}
-		userClaim, err := token.Parse(access_token)
+		userClaim, err := token.ParseAndVerify(access_token)
 		if err != nil {
 			next.ServeHTTP(w, r)
 			return

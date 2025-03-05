@@ -1,6 +1,7 @@
-package handler
+package service
 
 import (
+	"encoding/json"
 	"net/http"
 	"strconv"
 	"time"
@@ -8,26 +9,26 @@ import (
 	"github.com/AnhBigBrother/enlighten-backend/cfg"
 	"github.com/AnhBigBrother/enlighten-backend/internal/database"
 	"github.com/AnhBigBrother/enlighten-backend/internal/dto"
-	"github.com/AnhBigBrother/enlighten-backend/pkg/parser"
-	"github.com/AnhBigBrother/enlighten-backend/pkg/resp"
+
+	"github.com/AnhBigBrother/enlighten-backend/internal/pkg/resp"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-type PostsHandler struct {
+type PostsService struct {
 	DB *database.Queries
 }
 
-func NewPostsHandler() PostsHandler {
-	return PostsHandler{
+func NewPostsService() PostsService {
+	return PostsService{
 		DB: cfg.DBQueries,
 	}
 }
 
-func (postsHandler *PostsHandler) GetFollowedPosts(w http.ResponseWriter, r *http.Request) {
+func (postsService *PostsService) GetFollowedPosts(w http.ResponseWriter, r *http.Request) {
 	user, ok := r.Context().Value(cfg.CtxKeys.User).(map[string]interface{})
 	if !ok {
-		postsHandler.GetAllPosts(w, r)
+		postsService.GetAllPosts(w, r)
 		return
 	}
 	userId := user["jti"].(string)
@@ -47,7 +48,7 @@ func (postsHandler *PostsHandler) GetFollowedPosts(w http.ResponseWriter, r *htt
 		offset = 0
 	}
 	if sort == "hot" {
-		posts, err := postsHandler.DB.GetHotFollowedPosts(r.Context(), database.GetHotFollowedPostsParams{
+		posts, err := postsService.DB.GetHotFollowedPosts(r.Context(), database.GetHotFollowedPostsParams{
 			FollowerID: pgtype.UUID{Bytes: userUUID, Valid: true},
 			Limit:      int32(limit),
 			Offset:     int32(offset),
@@ -60,7 +61,7 @@ func (postsHandler *PostsHandler) GetFollowedPosts(w http.ResponseWriter, r *htt
 		return
 	}
 	if sort == "top" {
-		posts, err := postsHandler.DB.GetTopFollowedPosts(r.Context(), database.GetTopFollowedPostsParams{
+		posts, err := postsService.DB.GetTopFollowedPosts(r.Context(), database.GetTopFollowedPostsParams{
 			FollowerID: pgtype.UUID{Bytes: userUUID, Valid: true},
 			Limit:      int32(limit),
 			Offset:     int32(offset),
@@ -72,7 +73,7 @@ func (postsHandler *PostsHandler) GetFollowedPosts(w http.ResponseWriter, r *htt
 		resp.Json(w, 200, posts)
 		return
 	}
-	posts, err := postsHandler.DB.GetNewFollowedPosts(r.Context(), database.GetNewFollowedPostsParams{
+	posts, err := postsService.DB.GetNewFollowedPosts(r.Context(), database.GetNewFollowedPostsParams{
 		FollowerID: pgtype.UUID{Bytes: userUUID, Valid: true},
 		Limit:      int32(limit),
 		Offset:     int32(offset),
@@ -84,7 +85,7 @@ func (postsHandler *PostsHandler) GetFollowedPosts(w http.ResponseWriter, r *htt
 	resp.Json(w, 200, posts)
 }
 
-func (postsHandler *PostsHandler) GetAllPosts(w http.ResponseWriter, r *http.Request) {
+func (postsService *PostsService) GetAllPosts(w http.ResponseWriter, r *http.Request) {
 	queryParams := r.URL.Query()
 	sort, limitStr, offsetStr := queryParams.Get("sort"), queryParams.Get("limit"), queryParams.Get("offset")
 	limit, err := strconv.Atoi(limitStr)
@@ -96,7 +97,7 @@ func (postsHandler *PostsHandler) GetAllPosts(w http.ResponseWriter, r *http.Req
 		offset = 0
 	}
 	if sort == "hot" {
-		posts, err := postsHandler.DB.GetHotPosts(r.Context(), database.GetHotPostsParams{
+		posts, err := postsService.DB.GetHotPosts(r.Context(), database.GetHotPostsParams{
 			Limit:  int32(limit),
 			Offset: int32(offset),
 		})
@@ -108,7 +109,7 @@ func (postsHandler *PostsHandler) GetAllPosts(w http.ResponseWriter, r *http.Req
 		return
 	}
 	if sort == "top" {
-		posts, err := postsHandler.DB.GetTopPosts(r.Context(), database.GetTopPostsParams{
+		posts, err := postsService.DB.GetTopPosts(r.Context(), database.GetTopPostsParams{
 			Limit:  int32(limit),
 			Offset: int32(offset),
 		})
@@ -119,7 +120,7 @@ func (postsHandler *PostsHandler) GetAllPosts(w http.ResponseWriter, r *http.Req
 		resp.Json(w, 200, posts)
 		return
 	}
-	posts, err := postsHandler.DB.GetNewPosts(r.Context(), database.GetNewPostsParams{
+	posts, err := postsService.DB.GetNewPosts(r.Context(), database.GetNewPostsParams{
 		Limit:  int32(limit),
 		Offset: int32(offset),
 	})
@@ -130,9 +131,9 @@ func (postsHandler *PostsHandler) GetAllPosts(w http.ResponseWriter, r *http.Req
 	resp.Json(w, 200, posts)
 }
 
-func (postsHandler *PostsHandler) CreatePost(w http.ResponseWriter, r *http.Request) {
+func (postsService *PostsService) CreatePost(w http.ResponseWriter, r *http.Request) {
 	params := dto.CretaePostDTO{}
-	err := parser.ParseBody(r.Body, &params)
+	err := json.NewDecoder(r.Body).Decode(&params)
 	if err != nil {
 		resp.Err(w, 400, err.Error())
 		return
@@ -150,7 +151,7 @@ func (postsHandler *PostsHandler) CreatePost(w http.ResponseWriter, r *http.Requ
 		return
 	}
 	currentTime := time.Now()
-	post, err := postsHandler.DB.CreatePost(r.Context(), database.CreatePostParams{
+	post, err := postsService.DB.CreatePost(r.Context(), database.CreatePostParams{
 		ID:        pgtype.UUID{Bytes: uuid.New(), Valid: true},
 		Title:     params.Title,
 		Content:   params.Content,
@@ -165,14 +166,14 @@ func (postsHandler *PostsHandler) CreatePost(w http.ResponseWriter, r *http.Requ
 	resp.Json(w, 201, post)
 }
 
-func (postsHandler *PostsHandler) GetPostById(w http.ResponseWriter, r *http.Request) {
+func (postsService *PostsService) GetPostById(w http.ResponseWriter, r *http.Request) {
 	postId := r.PathValue("post_id")
 	postUUID, err := uuid.Parse(postId)
 	if err != nil {
 		resp.Err(w, 400, err.Error())
 		return
 	}
-	post, err := postsHandler.DB.GetPostById(r.Context(), pgtype.UUID{Bytes: postUUID, Valid: true})
+	post, err := postsService.DB.GetPostById(r.Context(), pgtype.UUID{Bytes: postUUID, Valid: true})
 	if err != nil {
 		resp.Err(w, 404, err.Error())
 		return
@@ -180,7 +181,7 @@ func (postsHandler *PostsHandler) GetPostById(w http.ResponseWriter, r *http.Req
 	resp.Json(w, 200, post)
 }
 
-func (postsHandler *PostsHandler) UpVotePost(w http.ResponseWriter, r *http.Request) {
+func (postsService *PostsService) UpVotePost(w http.ResponseWriter, r *http.Request) {
 	postId := r.PathValue("post_id")
 	postUUID, err := uuid.Parse(postId)
 	if err != nil {
@@ -194,7 +195,7 @@ func (postsHandler *PostsHandler) UpVotePost(w http.ResponseWriter, r *http.Requ
 		resp.Err(w, 400, err.Error())
 		return
 	}
-	err = postsHandler.DB.VotePost(r.Context(), cfg.DBConnection, pgtype.UUID{Bytes: authorUuid, Valid: true}, pgtype.UUID{Bytes: postUUID, Valid: true}, "up")
+	err = postsService.DB.VotePost(r.Context(), cfg.DBConnection, pgtype.UUID{Bytes: authorUuid, Valid: true}, pgtype.UUID{Bytes: postUUID, Valid: true}, "up")
 	if err != nil {
 		resp.Err(w, 400, err.Error())
 		return
@@ -205,7 +206,7 @@ func (postsHandler *PostsHandler) UpVotePost(w http.ResponseWriter, r *http.Requ
 	}{Message: "success"})
 }
 
-func (postsHandler *PostsHandler) DownVotePost(w http.ResponseWriter, r *http.Request) {
+func (postsService *PostsService) DownVotePost(w http.ResponseWriter, r *http.Request) {
 	postId := r.PathValue("post_id")
 	postUUID, err := uuid.Parse(postId)
 	if err != nil {
@@ -219,7 +220,7 @@ func (postsHandler *PostsHandler) DownVotePost(w http.ResponseWriter, r *http.Re
 		resp.Err(w, 400, err.Error())
 		return
 	}
-	err = postsHandler.DB.VotePost(r.Context(), cfg.DBConnection, pgtype.UUID{Bytes: authorUuid, Valid: true}, pgtype.UUID{Bytes: postUUID, Valid: true}, "down")
+	err = postsService.DB.VotePost(r.Context(), cfg.DBConnection, pgtype.UUID{Bytes: authorUuid, Valid: true}, pgtype.UUID{Bytes: postUUID, Valid: true}, "down")
 	if err != nil {
 		resp.Err(w, 400, err.Error())
 		return
@@ -230,7 +231,7 @@ func (postsHandler *PostsHandler) DownVotePost(w http.ResponseWriter, r *http.Re
 	}{Message: "success"})
 }
 
-func (postsHandler *PostsHandler) SavePost(w http.ResponseWriter, r *http.Request) {
+func (postsService *PostsService) SavePost(w http.ResponseWriter, r *http.Request) {
 	postId := r.PathValue("post_id")
 	postUUID, err := uuid.Parse(postId)
 	if err != nil {
@@ -244,7 +245,7 @@ func (postsHandler *PostsHandler) SavePost(w http.ResponseWriter, r *http.Reques
 		resp.Err(w, 400, err.Error())
 		return
 	}
-	savedPost, err := postsHandler.DB.CreateSavedPost(r.Context(), database.CreateSavedPostParams{
+	savedPost, err := postsService.DB.CreateSavedPost(r.Context(), database.CreateSavedPostParams{
 		ID:        pgtype.UUID{Bytes: uuid.New(), Valid: true},
 		UserID:    pgtype.UUID{Bytes: authorUuid, Valid: true},
 		PostID:    pgtype.UUID{Bytes: postUUID, Valid: true},
@@ -257,7 +258,7 @@ func (postsHandler *PostsHandler) SavePost(w http.ResponseWriter, r *http.Reques
 	resp.Json(w, 201, savedPost)
 }
 
-func (postsHandler *PostsHandler) UnSavePost(w http.ResponseWriter, r *http.Request) {
+func (postsService *PostsService) UnSavePost(w http.ResponseWriter, r *http.Request) {
 	postId := r.PathValue("post_id")
 	postUUID, err := uuid.Parse(postId)
 	if err != nil {
@@ -271,7 +272,7 @@ func (postsHandler *PostsHandler) UnSavePost(w http.ResponseWriter, r *http.Requ
 		resp.Err(w, 400, err.Error())
 		return
 	}
-	err = postsHandler.DB.DeleteSavedPost(r.Context(), database.DeleteSavedPostParams{
+	err = postsService.DB.DeleteSavedPost(r.Context(), database.DeleteSavedPostParams{
 		UserID: pgtype.UUID{Bytes: authorUuid, Valid: true},
 		PostID: pgtype.UUID{Bytes: postUUID, Valid: true},
 	})
@@ -284,7 +285,7 @@ func (postsHandler *PostsHandler) UnSavePost(w http.ResponseWriter, r *http.Requ
 	}{Message: "Success"})
 }
 
-func (postsHandler *PostsHandler) GetAllSavedPost(w http.ResponseWriter, r *http.Request) {
+func (postsService *PostsService) GetAllSavedPost(w http.ResponseWriter, r *http.Request) {
 	queryParams := r.URL.Query()
 	limitStr, offsetStr := queryParams.Get("limit"), queryParams.Get("offset")
 	limit, err := strconv.Atoi(limitStr)
@@ -302,7 +303,7 @@ func (postsHandler *PostsHandler) GetAllSavedPost(w http.ResponseWriter, r *http
 		resp.Err(w, 400, err.Error())
 		return
 	}
-	savedPosts, err := postsHandler.DB.GetAllSavedPosts(r.Context(), database.GetAllSavedPostsParams{
+	savedPosts, err := postsService.DB.GetAllSavedPosts(r.Context(), database.GetAllSavedPostsParams{
 		UserID: pgtype.UUID{Bytes: userUuid, Valid: true},
 		Limit:  int32(limit),
 		Offset: int32(offset),
@@ -314,7 +315,7 @@ func (postsHandler *PostsHandler) GetAllSavedPost(w http.ResponseWriter, r *http
 	resp.Json(w, 200, savedPosts)
 }
 
-func (postsHandler *PostsHandler) CheckPost(w http.ResponseWriter, r *http.Request) {
+func (postsService *PostsService) CheckPost(w http.ResponseWriter, r *http.Request) {
 	postId := r.PathValue("post_id")
 	postUUID, err := uuid.Parse(postId)
 	if err != nil {
@@ -328,7 +329,7 @@ func (postsHandler *PostsHandler) CheckPost(w http.ResponseWriter, r *http.Reque
 		resp.Err(w, 400, err.Error())
 		return
 	}
-	checked, err := postsHandler.DB.CheckPostInteracted(r.Context(), database.CheckPostInteractedParams{
+	checked, err := postsService.DB.CheckPostInteracted(r.Context(), database.CheckPostInteractedParams{
 		VoterID: pgtype.UUID{Bytes: authorUuid, Valid: true},
 		PostID:  pgtype.UUID{Bytes: postUUID, Valid: true},
 	})
@@ -339,11 +340,11 @@ func (postsHandler *PostsHandler) CheckPost(w http.ResponseWriter, r *http.Reque
 	resp.Json(w, 200, checked)
 }
 
-func (postsHandler *PostsHandler) AddPostComment(w http.ResponseWriter, r *http.Request) {
+func (postsService *PostsService) AddPostComment(w http.ResponseWriter, r *http.Request) {
 	params := struct {
 		Comment string `json:"comment"`
 	}{}
-	err := parser.ParseBody(r.Body, &params)
+	err := json.NewDecoder(r.Body).Decode(&params)
 	if err != nil {
 		resp.Err(w, 400, err.Error())
 		return
@@ -365,7 +366,7 @@ func (postsHandler *PostsHandler) AddPostComment(w http.ResponseWriter, r *http.
 		resp.Err(w, 400, err.Error())
 		return
 	}
-	comment, err := postsHandler.DB.AddComment(r.Context(), cfg.DBConnection, params.Comment, pgtype.UUID{Bytes: authorUuid, Valid: true}, pgtype.UUID{Bytes: postUUID, Valid: true}, pgtype.UUID{Valid: false})
+	comment, err := postsService.DB.AddComment(r.Context(), cfg.DBConnection, params.Comment, pgtype.UUID{Bytes: authorUuid, Valid: true}, pgtype.UUID{Bytes: postUUID, Valid: true}, pgtype.UUID{Valid: false})
 	if err != nil {
 		resp.Err(w, 400, err.Error())
 		return
@@ -373,7 +374,7 @@ func (postsHandler *PostsHandler) AddPostComment(w http.ResponseWriter, r *http.
 	resp.Json(w, 201, comment)
 }
 
-func (postsHandler *PostsHandler) GetPostComments(w http.ResponseWriter, r *http.Request) {
+func (postsService *PostsService) GetPostComments(w http.ResponseWriter, r *http.Request) {
 	queryParams := r.URL.Query()
 	limitStr, offsetStr := queryParams.Get("limit"), queryParams.Get("offset")
 	limit, err := strconv.Atoi(limitStr)
@@ -390,7 +391,7 @@ func (postsHandler *PostsHandler) GetPostComments(w http.ResponseWriter, r *http
 		resp.Err(w, 400, err.Error())
 		return
 	}
-	comments, err := postsHandler.DB.GetPostComments(r.Context(), database.GetPostCommentsParams{
+	comments, err := postsService.DB.GetPostComments(r.Context(), database.GetPostCommentsParams{
 		PostID: pgtype.UUID{Bytes: postUUID, Valid: true},
 		Limit:  int32(limit),
 		Offset: int32(offset),

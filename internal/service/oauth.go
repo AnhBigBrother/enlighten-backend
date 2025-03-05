@@ -1,7 +1,8 @@
-package handler
+package service
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -9,14 +10,14 @@ import (
 
 	"github.com/AnhBigBrother/enlighten-backend/cfg"
 	"github.com/AnhBigBrother/enlighten-backend/internal/database"
-	"github.com/AnhBigBrother/enlighten-backend/pkg/parser"
-	"github.com/AnhBigBrother/enlighten-backend/pkg/resp"
-	"github.com/AnhBigBrother/enlighten-backend/pkg/token"
+
+	token "github.com/AnhBigBrother/enlighten-backend/internal/pkg/jwt-token"
+	"github.com/AnhBigBrother/enlighten-backend/internal/pkg/resp"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-type OauthHandler struct {
+type OauthService struct {
 	DB *database.Queries
 }
 
@@ -26,13 +27,13 @@ type oauthUserInfo struct {
 	Picture string `json:"picture"`
 }
 
-func NewOauthHandler() OauthHandler {
-	return OauthHandler{
+func NewOauthService() OauthService {
+	return OauthService{
 		DB: cfg.DBQueries,
 	}
 }
 
-func (oauthHandler *OauthHandler) HandleGoogleOauth(w http.ResponseWriter, r *http.Request) {
+func (oauthService *OauthService) HandleGoogleOauth(w http.ResponseWriter, r *http.Request) {
 	queries := r.URL.Query()
 	tokenType, accessToken, redirectTo := queries.Get("token_type"), queries.Get("access_token"), queries.Get("redirect_to")
 	userData, err := getGoogleUserInfo(tokenType, accessToken)
@@ -40,7 +41,7 @@ func (oauthHandler *OauthHandler) HandleGoogleOauth(w http.ResponseWriter, r *ht
 		resp.Err(w, 404, err.Error())
 		return
 	}
-	access_token, refresh_token, err := oauthHandler.signInOauthUser(userData)
+	access_token, refresh_token, err := oauthService.signInOauthUser(userData)
 	if err != nil {
 		if err.Error() == "unregistered user" {
 			http.Redirect(w, r, fmt.Sprintf("%s/signup?email=%s&name=%s&image=%s", cfg.FrontendUrl, userData.Email, userData.Name, userData.Picture), http.StatusTemporaryRedirect)
@@ -65,7 +66,7 @@ func (oauthHandler *OauthHandler) HandleGoogleOauth(w http.ResponseWriter, r *ht
 	})
 }
 
-func (oauthHandler *OauthHandler) HandleGithubOauth(w http.ResponseWriter, r *http.Request) {
+func (oauthService *OauthService) HandleGithubOauth(w http.ResponseWriter, r *http.Request) {
 	queries := r.URL.Query()
 	tokenType, accessToken, redirectTo := queries.Get("token_type"), queries.Get("access_token"), queries.Get("redirect_to")
 	userData, err := getGithubUserInfo(tokenType, accessToken)
@@ -73,7 +74,7 @@ func (oauthHandler *OauthHandler) HandleGithubOauth(w http.ResponseWriter, r *ht
 		resp.Err(w, 404, err.Error())
 		return
 	}
-	access_token, refresh_token, err := oauthHandler.signInOauthUser(userData)
+	access_token, refresh_token, err := oauthService.signInOauthUser(userData)
 	if err != nil {
 		if err.Error() == "unregistered user" {
 			http.Redirect(w, r, fmt.Sprintf("%s/signup?email=%s&name=%s&image=%s", cfg.FrontendUrl, userData.Email, userData.Name, userData.Picture), http.StatusTemporaryRedirect)
@@ -98,7 +99,7 @@ func (oauthHandler *OauthHandler) HandleGithubOauth(w http.ResponseWriter, r *ht
 	})
 }
 
-func (oauthHandler *OauthHandler) HandleMicrosoftOauth(w http.ResponseWriter, r *http.Request) {
+func (oauthService *OauthService) HandleMicrosoftOauth(w http.ResponseWriter, r *http.Request) {
 	queries := r.URL.Query()
 	tokenType, accessToken, redirectTo := queries.Get("token_type"), queries.Get("access_token"), queries.Get("redirect_to")
 	userData, err := getMicrosoftUserInfo(tokenType, accessToken)
@@ -106,7 +107,7 @@ func (oauthHandler *OauthHandler) HandleMicrosoftOauth(w http.ResponseWriter, r 
 		resp.Err(w, 404, err.Error())
 		return
 	}
-	access_token, refresh_token, err := oauthHandler.signInOauthUser(userData)
+	access_token, refresh_token, err := oauthService.signInOauthUser(userData)
 	if err != nil {
 		if err.Error() == "unregistered user" {
 			http.Redirect(w, r, fmt.Sprintf("%s/signup?email=%s&name=%s&image=%s", cfg.FrontendUrl, userData.Email, userData.Name, userData.Picture), http.StatusTemporaryRedirect)
@@ -131,7 +132,7 @@ func (oauthHandler *OauthHandler) HandleMicrosoftOauth(w http.ResponseWriter, r 
 	})
 }
 
-func (oauthHandler *OauthHandler) HandleDiscordOauth(w http.ResponseWriter, r *http.Request) {
+func (oauthService *OauthService) HandleDiscordOauth(w http.ResponseWriter, r *http.Request) {
 	queries := r.URL.Query()
 	tokenType, accessToken, redirectTo := queries.Get("token_type"), queries.Get("access_token"), queries.Get("redirect_to")
 	userData, err := getDiscordUserInfo(tokenType, accessToken)
@@ -139,7 +140,7 @@ func (oauthHandler *OauthHandler) HandleDiscordOauth(w http.ResponseWriter, r *h
 		resp.Err(w, 404, err.Error())
 		return
 	}
-	access_token, refresh_token, err := oauthHandler.signInOauthUser(userData)
+	access_token, refresh_token, err := oauthService.signInOauthUser(userData)
 	if err != nil {
 		if err.Error() == "unregistered user" {
 			http.Redirect(w, r, fmt.Sprintf("%s/signup?email=%s&name=%s&image=%s", cfg.FrontendUrl, userData.Email, userData.Name, userData.Picture), http.StatusTemporaryRedirect)
@@ -176,7 +177,7 @@ func getGoogleUserInfo(tokenType, accessToken string) (oauthUserInfo, error) {
 		return oauthUserInfo{}, err
 	}
 	userInfo := oauthUserInfo{}
-	err = parser.ParseBody(res.Body, &userInfo)
+	err = json.NewDecoder(res.Body).Decode(&userInfo)
 	if err != nil {
 		return userInfo, err
 	}
@@ -200,7 +201,7 @@ func getGithubUserInfo(tokenType, accessToken string) (oauthUserInfo, error) {
 		Name      string `json:"name"`
 		AvatarUrl string `json:"avatar_url"`
 	}{}
-	err = parser.ParseBody(res.Body, &userInfo)
+	err = json.NewDecoder(res.Body).Decode(&userInfo)
 	if err != nil {
 		return oauthUserInfo{}, err
 	}
@@ -212,7 +213,7 @@ func getGithubUserInfo(tokenType, accessToken string) (oauthUserInfo, error) {
 		return oauthUserInfo{}, err
 	}
 	emailResData := []interface{}{}
-	err = parser.ParseBody(emailRes.Body, &emailResData)
+	err = json.NewDecoder(emailRes.Body).Decode(&emailResData)
 	if err != nil {
 		return oauthUserInfo{}, err
 	}
@@ -236,7 +237,7 @@ func getMicrosoftUserInfo(tokenType, accessToken string) (oauthUserInfo, error) 
 		return oauthUserInfo{}, err
 	}
 	userInfo := oauthUserInfo{}
-	err = parser.ParseBody(res.Body, &userInfo)
+	err = json.NewDecoder(res.Body).Decode(&userInfo)
 	if err != nil {
 		return oauthUserInfo{}, err
 	}
@@ -260,7 +261,7 @@ func getDiscordUserInfo(tokenType, accessToken string) (oauthUserInfo, error) {
 		GlobalName string `json:"global_name"`
 		Avatar     string `json:"avatar"`
 	}{}
-	err = parser.ParseBody(res.Body, &userInfo)
+	err = json.NewDecoder(res.Body).Decode(&userInfo)
 	if err != nil {
 		return oauthUserInfo{}, err
 	}
@@ -271,8 +272,8 @@ func getDiscordUserInfo(tokenType, accessToken string) (oauthUserInfo, error) {
 	}, nil
 }
 
-func (oauthHandler *OauthHandler) signInOauthUser(user oauthUserInfo) (string, string, error) {
-	dbUser, err := oauthHandler.DB.FindUserByEmail(context.Background(), user.Email)
+func (oauthService *OauthService) signInOauthUser(user oauthUserInfo) (string, string, error) {
+	dbUser, err := oauthService.DB.FindUserByEmail(context.Background(), user.Email)
 
 	if err != nil {
 		return "", "", errors.New("unregistered user")
@@ -307,7 +308,7 @@ func (oauthHandler *OauthHandler) signInOauthUser(user oauthUserInfo) (string, s
 		return "", "", nil
 	}
 
-	_, err = oauthHandler.DB.UpdateUserRefreshToken(context.Background(), database.UpdateUserRefreshTokenParams{
+	_, err = oauthService.DB.UpdateUserRefreshToken(context.Background(), database.UpdateUserRefreshTokenParams{
 		Email:        dbUser.Email,
 		RefreshToken: pgtype.Text{String: refresh_token, Valid: true},
 	})

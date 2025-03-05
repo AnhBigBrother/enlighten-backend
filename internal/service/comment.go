@@ -1,28 +1,28 @@
-package handler
+package service
 
 import (
+	"encoding/json"
 	"net/http"
 	"strconv"
 
 	"github.com/AnhBigBrother/enlighten-backend/cfg"
 	"github.com/AnhBigBrother/enlighten-backend/internal/database"
-	"github.com/AnhBigBrother/enlighten-backend/pkg/parser"
-	"github.com/AnhBigBrother/enlighten-backend/pkg/resp"
+	"github.com/AnhBigBrother/enlighten-backend/internal/pkg/resp"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-type CommentsHandler struct {
+type CommentsService struct {
 	DB *database.Queries
 }
 
-func NewCommentsHandler() CommentsHandler {
-	return CommentsHandler{
+func NewCommentsService() CommentsService {
+	return CommentsService{
 		DB: cfg.DBQueries,
 	}
 }
 
-func (commentsHandler *CommentsHandler) GetCommentReplies(w http.ResponseWriter, r *http.Request) {
+func (commentsService *CommentsService) GetCommentReplies(w http.ResponseWriter, r *http.Request) {
 	queryParams := r.URL.Query()
 	limitStr, offsetStr := queryParams.Get("limit"), queryParams.Get("offset")
 	limit, err := strconv.Atoi(limitStr)
@@ -45,7 +45,7 @@ func (commentsHandler *CommentsHandler) GetCommentReplies(w http.ResponseWriter,
 		resp.Err(w, 400, err.Error())
 		return
 	}
-	replies, err := commentsHandler.DB.GetCommentsReplies(r.Context(), database.GetCommentsRepliesParams{
+	replies, err := commentsService.DB.GetCommentsReplies(r.Context(), database.GetCommentsRepliesParams{
 		PostID: pgtype.UUID{
 			Bytes: postUUID,
 			Valid: true,
@@ -64,7 +64,7 @@ func (commentsHandler *CommentsHandler) GetCommentReplies(w http.ResponseWriter,
 	resp.Json(w, 200, replies)
 }
 
-func (commentsHandler *CommentsHandler) UpVoteComment(w http.ResponseWriter, r *http.Request) {
+func (commentsService *CommentsService) UpVoteComment(w http.ResponseWriter, r *http.Request) {
 	session, _ := r.Context().Value(cfg.CtxKeys.User).(map[string]interface{})
 	authorId, _ := session["jti"].(string)
 	authorUuid, err := uuid.Parse(authorId)
@@ -78,7 +78,7 @@ func (commentsHandler *CommentsHandler) UpVoteComment(w http.ResponseWriter, r *
 		resp.Err(w, 400, err.Error())
 		return
 	}
-	err = commentsHandler.DB.VoteComment(r.Context(), cfg.DBConnection, pgtype.UUID{Bytes: authorUuid, Valid: true}, pgtype.UUID{Bytes: commentUUID, Valid: true}, "up")
+	err = commentsService.DB.VoteComment(r.Context(), cfg.DBConnection, pgtype.UUID{Bytes: authorUuid, Valid: true}, pgtype.UUID{Bytes: commentUUID, Valid: true}, "up")
 	if err != nil {
 		resp.Err(w, 400, err.Error())
 		return
@@ -88,7 +88,7 @@ func (commentsHandler *CommentsHandler) UpVoteComment(w http.ResponseWriter, r *
 	}{Message: "success"})
 }
 
-func (commentsHandler *CommentsHandler) DownVoteComment(w http.ResponseWriter, r *http.Request) {
+func (commentsService *CommentsService) DownVoteComment(w http.ResponseWriter, r *http.Request) {
 	session, _ := r.Context().Value(cfg.CtxKeys.User).(map[string]interface{})
 	authorId, _ := session["jti"].(string)
 	authorUuid, err := uuid.Parse(authorId)
@@ -102,7 +102,7 @@ func (commentsHandler *CommentsHandler) DownVoteComment(w http.ResponseWriter, r
 		resp.Err(w, 400, err.Error())
 		return
 	}
-	err = commentsHandler.DB.VoteComment(r.Context(), cfg.DBConnection, pgtype.UUID{Bytes: authorUuid, Valid: true}, pgtype.UUID{Bytes: commentUUID, Valid: true}, "down")
+	err = commentsService.DB.VoteComment(r.Context(), cfg.DBConnection, pgtype.UUID{Bytes: authorUuid, Valid: true}, pgtype.UUID{Bytes: commentUUID, Valid: true}, "down")
 	if err != nil {
 		resp.Err(w, 400, err.Error())
 		return
@@ -112,7 +112,7 @@ func (commentsHandler *CommentsHandler) DownVoteComment(w http.ResponseWriter, r
 	}{Message: "success"})
 }
 
-func (commentsHandler *CommentsHandler) CheckComment(w http.ResponseWriter, r *http.Request) {
+func (commentsService *CommentsService) CheckComment(w http.ResponseWriter, r *http.Request) {
 	session, _ := r.Context().Value(cfg.CtxKeys.User).(map[string]interface{})
 	authorId, _ := session["jti"].(string)
 	authorUuid, err := uuid.Parse(authorId)
@@ -126,7 +126,7 @@ func (commentsHandler *CommentsHandler) CheckComment(w http.ResponseWriter, r *h
 		resp.Err(w, 400, err.Error())
 		return
 	}
-	cv, err := commentsHandler.DB.GetCommentVotes(r.Context(), database.GetCommentVotesParams{
+	cv, err := commentsService.DB.GetCommentVotes(r.Context(), database.GetCommentVotesParams{
 		CommentID: pgtype.UUID{Bytes: commentUUID, Valid: true},
 		VoterID:   pgtype.UUID{Bytes: authorUuid, Valid: true},
 	})
@@ -141,7 +141,7 @@ func (commentsHandler *CommentsHandler) CheckComment(w http.ResponseWriter, r *h
 	}{Voted: string(cv.Voted)})
 }
 
-func (commentsHandler *CommentsHandler) ReplyComment(w http.ResponseWriter, r *http.Request) {
+func (commentsService *CommentsService) ReplyComment(w http.ResponseWriter, r *http.Request) {
 	session, _ := r.Context().Value(cfg.CtxKeys.User).(map[string]interface{})
 	authorId, _ := session["jti"].(string)
 	authorUuid, err := uuid.Parse(authorId)
@@ -164,7 +164,7 @@ func (commentsHandler *CommentsHandler) ReplyComment(w http.ResponseWriter, r *h
 	params := struct {
 		Reply string `json:"reply"`
 	}{}
-	err = parser.ParseBody(r.Body, &params)
+	err = json.NewDecoder(r.Body).Decode(&params)
 	if err != nil {
 		resp.Err(w, 400, err.Error())
 		return
@@ -173,7 +173,7 @@ func (commentsHandler *CommentsHandler) ReplyComment(w http.ResponseWriter, r *h
 		resp.Err(w, 400, "reply is required")
 		return
 	}
-	comment, err := commentsHandler.DB.AddComment(r.Context(), cfg.DBConnection, params.Reply, pgtype.UUID{Bytes: authorUuid, Valid: true}, pgtype.UUID{Bytes: postUUID, Valid: true}, pgtype.UUID{Bytes: parentCommentUUID, Valid: true})
+	comment, err := commentsService.DB.AddComment(r.Context(), cfg.DBConnection, params.Reply, pgtype.UUID{Bytes: authorUuid, Valid: true}, pgtype.UUID{Bytes: postUUID, Valid: true}, pgtype.UUID{Bytes: parentCommentUUID, Valid: true})
 	if err != nil {
 		resp.Err(w, 400, "reply is required")
 		return

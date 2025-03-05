@@ -14,6 +14,7 @@ WORKDIR /app
 
 COPY --from=builder /app/bin/api ./
 COPY --from=builder /app/.env.production ./
+
 EXPOSE 8080
 
-ENTRYPOINT ["./api"]
+ENTRYPOINT ["./api", "-env=production"]
